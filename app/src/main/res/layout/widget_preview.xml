@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/preview_widget_bg"
+    android:paddingLeft="10dp"
+    android:paddingRight="10dp"
+    android:paddingTop="5dp"
+    android:paddingBottom="5dp"
+    android:gravity="center_vertical"
+    tools:ignore="SpUsage">
+
+    <!-- [상단 날씨 영역] 오늘 5 : 내일 3 : 모레 3 비율 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <!-- [좌측: 현재 날씨] weight = 5 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="5"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="☀️"
+                android:textSize="22dp"
+                android:includeFontPadding="false" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="26°"
+                android:textColor="#FFFFFF"
+                android:textSize="18dp"
+                android:textStyle="bold"
+                android:singleLine="true"
+                android:includeFontPadding="false" />
+
+            <!-- 미세먼지 · 초미세먼지 (예: 24 · 12, 좋음 등급 파란색) -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:paddingTop="1dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="24"
+                    android:textColor="#4AA3FF"
+                    android:textSize="10dp"
+                    android:textStyle="bold"
+                    android:includeFontPadding="false" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=" · "
+                    android:textColor="#B3FFFFFF"
+                    android:textSize="9dp"
+                    android:textStyle="bold"
+                    android:includeFontPadding="false" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="12"
+                    android:textColor="#4AA3FF"
+                    android:textSize="10dp"
+                    android:textStyle="bold"
+                    android:includeFontPadding="false" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <View
+            android:layout_width="6dp"
+            android:layout_height="match_parent" />
+
+        <!-- [우측: 상단 지역명 + 하단 내일/모레] weight = 6 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="6"
+            android:orientation="vertical"
+            android:gravity="center_vertical">
+
+            <!-- 우측 상단: 위치 아이콘 + 지역 이름 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="end|center_vertical"
+                android:paddingBottom="2dp">
+
+                <ImageView
+                    android:layout_width="10dp"
+                    android:layout_height="10dp"
+                    android:src="@drawable/ic_location_pin"
+                    android:contentDescription="위치"
+                    android:layout_marginEnd="2dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="역삼동"
+                    android:textColor="#B3FFFFFF"
+                    android:textSize="10dp"
+                    android:textStyle="bold"
+                    android:singleLine="true"
+                    android:includeFontPadding="false" />
+            </LinearLayout>
+
+            <!-- 우측 하단: 내일 & 모레 예보 (각 weight = 1 -> 3 : 3) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <!-- 내일 -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="내일"
+                        android:textColor="#B3FFFFFF"
+                        android:textSize="9dp"
+                        android:singleLine="true"
+                        android:includeFontPadding="false" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⛅"
+                        android:textSize="13dp"
+                        android:includeFontPadding="false" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="18~27°"
+                        android:textColor="#FFFFFF"
+                        android:textSize="9dp"
+                        android:singleLine="true"
+                        android:includeFontPadding="false" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="4dp"
+                    android:layout_height="match_parent" />
+
+                <!-- 모레 -->
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical"
+                    android:gravity="center">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="모레"
+                        android:textColor="#B3FFFFFF"
+                        android:textSize="9dp"
+                        android:singleLine="true"
+                        android:includeFontPadding="false" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🌧️"
+                        android:textSize="13dp"
+                        android:includeFontPadding="false" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="15~22°"
+                        android:textColor="#FFFFFF"
+                        android:textSize="9dp"
+                        android:singleLine="true"
+                        android:includeFontPadding="false" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="3dp" />
+
+    <!-- [하단 강수확률 바 영역] 동일한 수평 baseline에 일렬 배치 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <!-- 오늘 강수확률 바 (weight = 5) -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="5"
+            android:gravity="center">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center">
+                <View android:layout_width="4dp" android:layout_height="4dp" android:background="#40FFFFFF" android:layout_marginEnd="1.5dp" />
+                <View android:layout_width="4dp" android:layout_height="4dp" android:background="#40FFFFFF" android:layout_marginEnd="1.5dp" />
+                <View android:layout_width="4dp" android:layout_height="4dp" android:background="#40FFFFFF" android:layout_marginEnd="1.5dp" />
+                <View android:layout_width="4dp" android:layout_height="4dp" android:background="#40FFFFFF" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <View
+            android:layout_width="6dp"
+            android:layout_height="4dp" />
+
+        <!-- 내일 & 모레 강수확률 바 (weight = 6) -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="6"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <!-- 내일 강수확률 바 (weight = 1) -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+                    <View android:layout_width="4dp" android:layout_height="4dp" android:background="#4AA3FF" android:layout_marginEnd="1.5dp" />
+                    <View android:layout_width="4dp" android:layout_height="4dp" android:background="#40FFFFFF" android:layout_marginEnd="1.5dp" />
+                    <View android:layout_width="4dp" android:layout_height="4dp" android:background="#40FFFFFF" android:layout_marginEnd="1.5dp" />
+                    <View android:layout_width="4dp" android:layout_height="4dp" android:background="#40FFFFFF" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <View
+                android:layout_width="4dp"
+                android:layout_height="4dp" />
+
+            <!-- 모레 강수확률 바 (weight = 1) -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+                    <View android:layout_width="4dp" android:layout_height="4dp" android:background="#4AA3FF" android:layout_marginEnd="1.5dp" />
+                    <View android:layout_width="4dp" android:layout_height="4dp" android:background="#4AA3FF" android:layout_marginEnd="1.5dp" />
+                    <View android:layout_width="4dp" android:layout_height="4dp" android:background="#4AA3FF" android:layout_marginEnd="1.5dp" />
+                    <View android:layout_width="4dp" android:layout_height="4dp" android:background="#4AA3FF" />
+                </LinearLayout>
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

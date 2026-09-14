@@ -1,0 +1,79 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 1. Background Sun (상단 우측 햇살) -->
+    <path
+        android:fillColor="#FFA726"
+        android:pathData="M78,38m-14,0a14,14 0,1 1,28 0a14,14 0,1 1,-28 0" />
+    <path
+        android:fillColor="#FFB74D"
+        android:pathData="M78,38m-11,0a11,11 0,1 1,22 0a11,11 0,1 1,-22 0" />
+
+    <!-- 2. Rabbit Left Ear (좌측 토끼 귀) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,55 C34,40 36,25 43,24 C50,23 50,38 46,55 Z" />
+    <!-- Left Ear Inner Pink -->
+    <path
+        android:fillColor="#FF80AB"
+        android:pathData="M40,51 C37,40 38,30 43,29 C47,28 47,38 44,51 Z" />
+
+    <!-- 3. Rabbit Right Ear (우측 토끼 귀 - 살짝 접힌 귀여운 각도) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,54 C54,38 60,25 67,27 C74,29 70,42 63,55 Z" />
+    <!-- Right Ear Inner Pink -->
+    <path
+        android:fillColor="#FF80AB"
+        android:pathData="M56,50 C57,40 61,31 66,32 C70,33 68,41 62,51 Z" />
+
+    <!-- 4. Rabbit Head (둥글고 통통한 토끼 얼굴) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M52,50 C33,50 28,63 28,73 C28,84 38,89 52,89 C66,89 76,84 76,73 C76,63 71,50 52,50 Z" />
+
+    <!-- 5. Cheeks (볼터치 분홍색) -->
+    <path
+        android:fillColor="#FF80AB"
+        android:pathData="M36,75m-4.5,0a4.5,3.5 0,1 1,9 0a4.5,3.5 0,1 1,-9 0" />
+    <path
+        android:fillColor="#FF80AB"
+        android:pathData="M68,75m-4.5,0a4.5,3.5 0,1 1,9 0a4.5,3.5 0,1 1,-9 0" />
+
+    <!-- 6. Eyes (초롱초롱한 눈) -->
+    <path
+        android:fillColor="#212121"
+        android:pathData="M42,67m-3,0a3,3.5 0,1 1,6 0a3,3.5 0,1 1,-6 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M43,65.5m-1,0a1,1 0,1 1,2 0a1,1 0,1 1,-2 0" />
+
+    <path
+        android:fillColor="#212121"
+        android:pathData="M62,67m-3,0a3,3.5 0,1 1,6 0a3,3.5 0,1 1,-6 0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M63,65.5m-1,0a1,1 0,1 1,2 0a1,1 0,1 1,-2 0" />
+
+    <!-- 7. Nose & Mouth (작은 코와 웃는 입) -->
+    <path
+        android:fillColor="#FF4081"
+        android:pathData="M52,71 L50,69 L54,69 Z" />
+    <path
+        android:strokeColor="#757575"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round"
+        android:pathData="M52,71 L52,73 M52,73 C50,75 48,74 47,73 M52,73 C54,75 56,74 57,73" />
+
+    <!-- 8. Front Weather Cloud (하단 몽실몽실한 구름) -->
+    <path
+        android:fillColor="#E3F2FD"
+        android:pathData="M24,86 C21,86 19,83 20,80 C21,77 24,76 26,77 C28,73 34,72 37,75 C40,73 45,74 46,78 C49,78 51,81 50,84 C50,86 48,86 46,86 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M25,85 C22,85 20,82 21,79 C22,76 25,75 27,76 C29,72 35,71 38,74 C41,72 46,73 47,77 C50,77 52,80 51,83 C51,85 49,85 47,85 Z" />
+
+</vector>
