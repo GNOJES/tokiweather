@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">tokiweather</string>
+    <string name="app_name">토끼날씨</string>
     <string name="widget_description">2x1 실시간 날씨 위젯</string>
 </resources>
