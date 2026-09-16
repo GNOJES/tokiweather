@@ -156,7 +156,7 @@ private fun WeatherWidgetContent(
             // defaultWeight() 대신 수학적 계산 폭(todayWidth, rightWidth)을 적용하여 엄격한 5:3:3 구현
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
                 // [좌측: 현재 날씨] 전체 가로의 5/11 비율
                 Column(
@@ -220,9 +220,9 @@ private fun WeatherWidgetContent(
                     modifier = GlanceModifier.width(rightWidth),
                     horizontalAlignment = Alignment.End
                 ) {
-                    // 1. 우측 상단: 위치 아이콘 + 지역명
+                    // 1. 우측 상단: 위치 아이콘 + 지역명 (상단 밀착 및 우측 5dp 여백으로 좌측 이동)
                     Row(
-                        modifier = GlanceModifier.fillMaxWidth(),
+                        modifier = GlanceModifier.fillMaxWidth().padding(end = 5.dp),
                         horizontalAlignment = Alignment.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -245,7 +245,7 @@ private fun WeatherWidgetContent(
                         )
                     }
 
-                    Spacer(modifier = GlanceModifier.height(2.dp))
+                    Spacer(modifier = GlanceModifier.height(3.dp))
 
                     // 2. 우측 하단: 내일 & 모레 예보 (각 3/11 분할로 3 : 3)
                     Row(

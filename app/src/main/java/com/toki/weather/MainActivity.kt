@@ -758,7 +758,7 @@ fun WidgetPreviewBox(
                     // [상단: 날씨 정보 행] 오늘 5 : 내일 3 : 모레 3 비율
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.Top
                     ) {
                         // 좌측: 오늘 (폭 = todayWidth, 5/11)
                         Column(
@@ -818,11 +818,13 @@ fun WidgetPreviewBox(
                         // 우측: 상단 지역명 + 하단 내일/모레 예보 (폭 = rightWidth, 6/11)
                         Column(
                             modifier = Modifier.width(rightWidth),
-                            verticalArrangement = Arrangement.Center
+                            horizontalAlignment = Alignment.End
                         ) {
-                            // 우측 상단: 위치 아이콘 + 지역명
+                            // 우측 상단: 위치 아이콘 + 지역명 (상단 밀착 및 우측 5dp 여백으로 좌측 이동)
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(end = 5.dp),
                                 horizontalArrangement = Arrangement.End,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -834,7 +836,7 @@ fun WidgetPreviewBox(
                                 )
                                 Spacer(modifier = Modifier.width(1.5.dp))
                                 Text(
-                                    text = if (weather.lastUpdated > 0) weather.locationName else "역삼동",
+                                    text = if (weather.lastUpdated > 0) weather.locationName else "영등포동7가",
                                     fontSize = locNameSize,
                                     fontWeight = FontWeight.Bold,
                                     color = subText,
@@ -844,7 +846,7 @@ fun WidgetPreviewBox(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(2.dp))
+                            Spacer(modifier = Modifier.height(3.dp))
 
                             // 우측 하단: 내일 & 모레 예보 (각 3/11 분할)
                             Row(
