@@ -84,6 +84,7 @@ fun SettingsScreen() {
     var currentTextColor by remember { mutableStateOf(WidgetThemeConfig.DEFAULT.textColorHex) }
     var currentInterval by remember { mutableIntStateOf(30) }
     var previewGridCols by remember { mutableIntStateOf(4) }
+    var previewGridRows by remember { mutableIntStateOf(5) }
     var showBgColorPicker by remember { mutableStateOf(false) }
     var showTextColorPicker by remember { mutableStateOf(false) }
 
@@ -275,45 +276,102 @@ fun SettingsScreen() {
             }
 
             // 2. 실시간 2x1 위젯 미리보기
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             ) {
-                Text(
-                    text = "위젯 미리보기 (2×1)",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.secondary
-                )
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "위젯 미리보기 (2×1)",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
 
-                // 홈 화면 런처 그리드 열 수 (4열 vs 5열) 선택
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    FilterChip(
-                        selected = previewGridCols == 4,
-                        onClick = { previewGridCols = 4 },
-                        label = { Text("4열 (기본)", fontSize = 11.sp) }
-                    )
-                    FilterChip(
-                        selected = previewGridCols == 5,
-                        onClick = { previewGridCols = 5 },
-                        label = { Text("5열 (5×5 등)", fontSize = 11.sp) }
+                        Text(
+                            text = "Galaxy S25 · ${previewGridCols}열 × ${previewGridRows}행",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // 가로 그리드 열 수 선택 (4열, 5열, 6열)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "가로",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.width(32.dp)
+                        )
+                        listOf(
+                            4 to "4열 (기본)",
+                            5 to "5열 (5×5 등)",
+                            6 to "6열 (Home Up)"
+                        ).forEach { (col, label) ->
+                            FilterChip(
+                                selected = previewGridCols == col,
+                                onClick = { previewGridCols = col },
+                                label = { Text(label, fontSize = 11.sp) },
+                                modifier = Modifier.height(30.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // 세로 그리드 행 수 선택 (4행, 5행, 6행, 7행)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "세로",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.width(32.dp)
+                        )
+                        listOf(
+                            4 to "4행",
+                            5 to "5행 (기본)",
+                            6 to "6행",
+                            7 to "7행"
+                        ).forEach { (row, label) ->
+                            FilterChip(
+                                selected = previewGridRows == row,
+                                onClick = { previewGridRows = row },
+                                label = { Text(label, fontSize = 11.sp) },
+                                modifier = Modifier.height(30.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    WidgetPreviewBox(
+                        weather = cachedWeather,
+                        bgColorHex = currentBgColor,
+                        bgAlpha = currentAlpha,
+                        textColorHex = currentTextColor,
+                        gridCols = previewGridCols,
+                        gridRows = previewGridRows
                     )
                 }
             }
-
-            WidgetPreviewBox(
-                weather = cachedWeather,
-                bgColorHex = currentBgColor,
-                bgAlpha = currentAlpha,
-                textColorHex = currentTextColor,
-                gridCols = previewGridCols
-            )
 
             Spacer(modifier = Modifier.height(18.dp))
 
@@ -608,12 +666,10 @@ fun SettingsScreen() {
 }
 
 /**
- * 설정 화면 내 2×1 위젯 실시간 미리보기 컴포넌트
- * 홈 화면 런처 그리드(4열 vs 5열)에 맞춰 실제 2×1 크기 시뮬레이션
- * 좌측: 현재 날씨 (전체 높이 사용 및 크게 표시)
- * 우측 상단: 지역명 (우측 정렬, 핀 아이콘)
- * 우측 하단: 내일 & 모레 예보 (컴팩트 배치)
- * 최하단: 강수확률 4칸 막대바 (수평 정렬)
+ * 홈 화면 실시간 2×1 위젯 미리보기
+ * - Galaxy S25 해상도 및 One UI 런처 가로(4,5,6열) / 세로(4,5,6,7행) 그리드 기준 실측 크기 반영
+ * - Solution 1: 상하 늘어짐(vertical weight) 없이 고정된 안전 높이를 중앙 정렬(Arrangement.Center)로 배치
+ * - 오늘 5 : 내일 3 : 모레 3 황금 비율 및 강수확률 바 수평 동기화
  */
 @Composable
 fun WidgetPreviewBox(
@@ -621,7 +677,8 @@ fun WidgetPreviewBox(
     bgColorHex: String,
     bgAlpha: Float,
     textColorHex: String,
-    gridCols: Int = 4
+    gridCols: Int = 4,
+    gridRows: Int = 5
 ) {
     val currentDensity = LocalDensity.current
 
@@ -635,20 +692,41 @@ fun WidgetPreviewBox(
         val parsedText = try { Color(android.graphics.Color.parseColor(textColorHex)) } catch (_: Exception) { Color.White }
         val subText = parsedText.copy(alpha = 0.75f)
 
-        // 런처 그리드에 따른 실제 2x1 물리적 비율 (4열: ~174dp x 98dp, 5열: ~140dp x 94dp)
-        val previewWidth = if (gridCols == 5) 140.dp else 174.dp
-        val previewHeight = if (gridCols == 5) 94.dp else 98.dp
-        val horizPadding = if (gridCols == 5) 7.dp else 9.dp
-        val vertPadding = if (gridCols == 5) 5.dp else 6.dp
+        // Galaxy S25 One UI 런처 실측 2x1 물리 크기 (FHD+ 1080x2340, 폭 ~384dp, 런처 높이 ~580dp)
+        val previewWidth = when (gridCols) {
+            4 -> 174.dp
+            5 -> 138.dp
+            6 -> 114.dp
+            else -> ((368 - (gridCols - 1) * 6) / gridCols * 2 + 6 - 8).coerceIn(100, 220).dp
+        }
+        val previewHeight = when (gridRows) {
+            4 -> 116.dp
+            5 -> 98.dp
+            6 -> 84.dp
+            7 -> 74.dp
+            else -> ((580 - (gridRows - 1) * 10) / gridRows - 24).coerceIn(64, 140).dp
+        }
+
+        val isCompact = gridCols >= 5
+        val isShort = gridRows >= 7
+
+        val horizPadding = if (isCompact) 8.dp else 10.dp
+        val vertPadding = if (isShort) 3.dp else 4.dp
+        val vertSpacer = if (isShort) 2.dp else 3.dp
+
+        val interColSpacer = if (isCompact) 4.dp else 6.dp
+        val forecastSpacer = if (isCompact) 2.dp else 4.dp
+
         val todayWeight = 5f
         val rightWeight = 6f
-        val todayEmojiSize = if (gridCols == 5) 20.sp else 22.sp
-        val todayTempSize = if (gridCols == 5) 16.sp else 18.sp
-        val todayPmSize = if (gridCols == 5) 9.sp else 10.sp
-        val locNameSize = if (gridCols == 5) 9.sp else 10.sp
-        val subEmojiSize = if (gridCols == 5) 12.sp else 13.sp
-        val subTempSize = if (gridCols == 5) 8.sp else 9.sp
-        val popBlockSize = if (gridCols == 5) 3.5.dp else 4.dp
+
+        val todayEmojiSize = if (isCompact) 20.sp else 22.sp
+        val todayTempSize = if (isCompact) 16.sp else 18.sp
+        val todayPmSize = if (isCompact) 9.sp else 10.sp
+        val locNameSize = if (isCompact) 9.sp else 10.sp
+        val subEmojiSize = if (isCompact) 12.sp else 13.sp
+        val subTempSize = if (isCompact) 8.sp else 9.sp
+        val popBlockSize = if (isCompact) 3.5.dp else 4.dp
 
         // 스마트폰 배경화면 시뮬레이션 컨테이너
         Box(
@@ -659,24 +737,25 @@ fun WidgetPreviewBox(
                 .padding(vertical = 16.dp, horizontal = 12.dp),
             contentAlignment = Alignment.Center
         ) {
-            // 실제 2x1 위젯 물리 크기 박스
+            // 실제 2x1 위젯 물리 크기 박스 (가로/세로 그리드에 반응하여 크기 변화)
             Box(
                 modifier = Modifier
                     .width(previewWidth)
                     .height(previewHeight)
                     .clip(RoundedCornerShape(16.dp))
                     .background(parsedBg.copy(alpha = bgAlpha))
-                    .padding(horizontal = horizPadding, vertical = vertPadding)
+                    .padding(horizontal = horizPadding, vertical = vertPadding),
+                contentAlignment = Alignment.Center
             ) {
+                // [Solution 1] 세로 스트레칭을 배제하고 상하 가운데 정렬로 안전 영역 유지
                 Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
-                    // [상단: 날씨 정보 행] 오늘 5 : 내일 3 : 모레 3 비율 (weight=1f로 공간 확보)
+                    // [상단: 날씨 정보 행] 오늘 5 : 내일 3 : 모레 3 비율
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // 좌측: 오늘 (weight = 5f)
@@ -732,7 +811,7 @@ fun WidgetPreviewBox(
                             }
                         }
 
-                        Spacer(modifier = Modifier.width(if (gridCols == 5) 4.dp else 6.dp))
+                        Spacer(modifier = Modifier.width(interColSpacer))
 
                         // 우측: 상단 지역명 + 하단 내일/모레 예보 (weight = 6f)
                         Column(
@@ -749,7 +828,7 @@ fun WidgetPreviewBox(
                                     painter = painterResource(R.drawable.ic_location_pin),
                                     contentDescription = "위치",
                                     tint = subText,
-                                    modifier = Modifier.size(if (gridCols == 5) 8.dp else 10.dp)
+                                    modifier = Modifier.size(if (isCompact) 8.dp else 10.dp)
                                 )
                                 Spacer(modifier = Modifier.width(1.5.dp))
                                 Text(
@@ -799,7 +878,7 @@ fun WidgetPreviewBox(
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.width(if (gridCols == 5) 2.dp else 4.dp))
+                                Spacer(modifier = Modifier.width(forecastSpacer))
 
                                 // 모레
                                 Column(
@@ -832,7 +911,7 @@ fun WidgetPreviewBox(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(vertSpacer))
 
                     // [하단: 강수확률 바 행] 오늘 / 내일 / 모레 동일한 수평 baseline 정렬
                     Row(
@@ -853,7 +932,7 @@ fun WidgetPreviewBox(
                             )
                         }
 
-                        Spacer(modifier = Modifier.width(if (gridCols == 5) 4.dp else 6.dp))
+                        Spacer(modifier = Modifier.width(interColSpacer))
 
                         // 내일 & 모레 (weight = 6f)
                         Row(
@@ -871,7 +950,7 @@ fun WidgetPreviewBox(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.width(if (gridCols == 5) 2.dp else 4.dp))
+                            Spacer(modifier = Modifier.width(forecastSpacer))
 
                             Box(
                                 modifier = Modifier.weight(1f),

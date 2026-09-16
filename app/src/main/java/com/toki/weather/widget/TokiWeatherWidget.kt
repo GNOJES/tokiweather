@@ -99,19 +99,39 @@ private fun WeatherWidgetContent(
     val textColorProvider = ColorProvider(mainTextColor)
     val subTextColorProvider = ColorProvider(subTextColor)
 
-    // 위젯 너비 기반 5:3:3 비율 계산 (오늘 5, 내일 3, 모레 3)
+    // 위젯 너비 및 높이 기반 반응형 비율 계산 (오늘 5, 내일 3, 모레 3)
     val widgetWidth = LocalSize.current.width.takeIf { it.value > 50f } ?: 170.dp
-    val contentWidth = (widgetWidth - 26.dp).coerceAtLeast(100.dp)
-    val todayWidth = contentWidth * (5f / 11f)
+    val widgetHeight = LocalSize.current.height.takeIf { it.value > 40f } ?: 90.dp
+    val isCompact = widgetWidth < 155.dp
+    val isShort = widgetHeight < 80.dp
+
+    val horizPadding = if (isCompact) 8.dp else 10.dp
+    val vertPadding = if (isShort) 2.dp else 4.dp
+    val vertSpacer = if (isShort) 2.dp else 3.dp
+
+    val interColSpacer = if (isCompact) 4.dp else 6.dp
+    val forecastSpacer = if (isCompact) 2.dp else 4.dp
+
+    val totalContentWidth = (widgetWidth - (horizPadding * 2) - interColSpacer).coerceAtLeast(100.dp)
+    val todayWidth = totalContentWidth * (5f / 11f)
+
+    val todayEmojiSize = if (isCompact) 20 else 22
+    val todayTempSize = if (isCompact) 16 else 18
+    val todayPmSize = if (isCompact) 9 else 10
+    val locNameSize = if (isCompact) 9 else 10
+    val subEmojiSize = if (isCompact) 12 else 13
+    val subTempSize = if (isCompact) 8 else 9
+    val popBlockSize = if (isCompact) 3.5.dp else 4.dp
 
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
             .background(widgetBgColor)
             .cornerRadius(16.dp)
-            .padding(horizontal = 10.dp, vertical = 5.dp)
+            .padding(horizontal = horizPadding, vertical = vertPadding)
             .clickable(actionStartActivity<MainActivity>()),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         if (!hasData) {
             Text(
@@ -126,23 +146,19 @@ private fun WeatherWidgetContent(
             )
         } else {
             // [상단: 날씨 정보 행] 오늘 5 : 내일 3 : 모레 3 비율
+            // defaultWeight() 및 fillMaxHeight()를 제거하여 런처 그리드 높이에 상관없이 일정한 간격 유지 (Solution 1)
             Row(
-                modifier = GlanceModifier
-                    .fillMaxWidth()
-                    .defaultWeight(),
+                modifier = GlanceModifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // [좌측: 현재 날씨] 전체 가로의 5/11 비율
                 Column(
-                    modifier = GlanceModifier
-                        .fillMaxHeight()
-                        .width(todayWidth),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = GlanceModifier.width(todayWidth),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         text = weather.currentCondition.emoji,
-                        style = TextStyle(fontSize = 22.fixedSp(fontScale)),
+                        style = TextStyle(fontSize = todayEmojiSize.fixedSp(fontScale)),
                         maxLines = 1
                     )
                     Spacer(modifier = GlanceModifier.height(1.dp))
@@ -150,7 +166,7 @@ private fun WeatherWidgetContent(
                         text = "${weather.currentTemp}°",
                         style = TextStyle(
                             color = textColorProvider,
-                            fontSize = 18.fixedSp(fontScale),
+                            fontSize = todayTempSize.fixedSp(fontScale),
                             fontWeight = FontWeight.Bold
                         ),
                         maxLines = 1
@@ -164,7 +180,7 @@ private fun WeatherWidgetContent(
                             text = if (weather.pm10 >= 0) "${weather.pm10}" else "-",
                             style = TextStyle(
                                 color = ColorProvider(weather.getPm10Color()),
-                                fontSize = 10.fixedSp(fontScale),
+                                fontSize = todayPmSize.fixedSp(fontScale),
                                 fontWeight = FontWeight.Bold
                             ),
                             maxLines = 1
@@ -173,7 +189,7 @@ private fun WeatherWidgetContent(
                             text = " · ",
                             style = TextStyle(
                                 color = subTextColorProvider,
-                                fontSize = 9.fixedSp(fontScale),
+                                fontSize = (todayPmSize - 1).fixedSp(fontScale),
                                 fontWeight = FontWeight.Bold
                             ),
                             maxLines = 1
@@ -182,7 +198,7 @@ private fun WeatherWidgetContent(
                             text = if (weather.pm25 >= 0) "${weather.pm25}" else "-",
                             style = TextStyle(
                                 color = ColorProvider(weather.getPm25Color()),
-                                fontSize = 10.fixedSp(fontScale),
+                                fontSize = todayPmSize.fixedSp(fontScale),
                                 fontWeight = FontWeight.Bold
                             ),
                             maxLines = 1
@@ -190,14 +206,12 @@ private fun WeatherWidgetContent(
                     }
                 }
 
-                Spacer(modifier = GlanceModifier.width(6.dp))
+                Spacer(modifier = GlanceModifier.width(interColSpacer))
 
                 // [우측: 상단 우측 지역명 + 하단 내일/모레 예보] 전체 가로의 6/11 비율
                 Column(
-                    modifier = GlanceModifier
-                        .fillMaxHeight()
-                        .defaultWeight(),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = GlanceModifier.defaultWeight(),
+                    horizontalAlignment = Alignment.End
                 ) {
                     // 1. 우측 상단: 위치 아이콘 + 지역명
                     Row(
@@ -209,14 +223,14 @@ private fun WeatherWidgetContent(
                             provider = ImageProvider(R.drawable.ic_location_pin),
                             contentDescription = "위치",
                             colorFilter = ColorFilter.tint(subTextColorProvider),
-                            modifier = GlanceModifier.size(10.dp)
+                            modifier = GlanceModifier.size(if (isCompact) 8.dp else 10.dp)
                         )
-                        Spacer(modifier = GlanceModifier.width(2.dp))
+                        Spacer(modifier = GlanceModifier.width(1.5.dp))
                         Text(
                             text = weather.locationName,
                             style = TextStyle(
                                 color = subTextColorProvider,
-                                fontSize = 10.fixedSp(fontScale),
+                                fontSize = locNameSize.fixedSp(fontScale),
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.End
                             ),
@@ -234,21 +248,20 @@ private fun WeatherWidgetContent(
                         // 내일
                         Column(
                             modifier = GlanceModifier.defaultWeight(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
                                 text = "내일",
                                 style = TextStyle(
                                     color = subTextColorProvider,
-                                    fontSize = 9.fixedSp(fontScale)
+                                    fontSize = (subTempSize - 0.5f).fixedSp(fontScale)
                                 ),
                                 maxLines = 1
                             )
                             Spacer(modifier = GlanceModifier.height(1.dp))
                             Text(
                                 text = weather.tomorrowCondition.emoji,
-                                style = TextStyle(fontSize = 13.fixedSp(fontScale)),
+                                style = TextStyle(fontSize = subEmojiSize.fixedSp(fontScale)),
                                 maxLines = 1
                             )
                             Spacer(modifier = GlanceModifier.height(1.dp))
@@ -256,32 +269,31 @@ private fun WeatherWidgetContent(
                                 text = "${weather.tomorrowMin}~${weather.tomorrowMax}°",
                                 style = TextStyle(
                                     color = textColorProvider,
-                                    fontSize = 9.fixedSp(fontScale)
+                                    fontSize = subTempSize.fixedSp(fontScale)
                                 ),
                                 maxLines = 1
                             )
                         }
 
-                        Spacer(modifier = GlanceModifier.width(4.dp))
+                        Spacer(modifier = GlanceModifier.width(forecastSpacer))
 
                         // 모레
                         Column(
                             modifier = GlanceModifier.defaultWeight(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
                                 text = "모레",
                                 style = TextStyle(
                                     color = subTextColorProvider,
-                                    fontSize = 9.fixedSp(fontScale)
+                                    fontSize = (subTempSize - 0.5f).fixedSp(fontScale)
                                 ),
                                 maxLines = 1
                             )
                             Spacer(modifier = GlanceModifier.height(1.dp))
                             Text(
                                 text = weather.dayAfterCondition.emoji,
-                                style = TextStyle(fontSize = 13.fixedSp(fontScale)),
+                                style = TextStyle(fontSize = subEmojiSize.fixedSp(fontScale)),
                                 maxLines = 1
                             )
                             Spacer(modifier = GlanceModifier.height(1.dp))
@@ -289,7 +301,7 @@ private fun WeatherWidgetContent(
                                 text = "${weather.dayAfterMin}~${weather.dayAfterMax}°",
                                 style = TextStyle(
                                     color = textColorProvider,
-                                    fontSize = 9.fixedSp(fontScale)
+                                    fontSize = subTempSize.fixedSp(fontScale)
                                 ),
                                 maxLines = 1
                             )
@@ -298,7 +310,7 @@ private fun WeatherWidgetContent(
                 }
             }
 
-            Spacer(modifier = GlanceModifier.height(3.dp))
+            Spacer(modifier = GlanceModifier.height(vertSpacer))
 
             // [하단: 강수확률 바 행] 오늘 / 내일 / 모레 모두 동일한 수평 baseline에 배치
             Row(
@@ -313,11 +325,11 @@ private fun WeatherWidgetContent(
                     PopBar(
                         pop = weather.todayPop,
                         textColor = mainTextColor,
-                        blockSize = 4.dp
+                        blockSize = popBlockSize
                     )
                 }
 
-                Spacer(modifier = GlanceModifier.width(6.dp))
+                Spacer(modifier = GlanceModifier.width(interColSpacer))
 
                 // 내일 & 모레 강수확률 바 (우측 6/11 공간)
                 Row(
@@ -331,11 +343,11 @@ private fun WeatherWidgetContent(
                         PopBar(
                             pop = weather.tomorrowPop,
                             textColor = mainTextColor,
-                            blockSize = 4.dp
+                            blockSize = popBlockSize
                         )
                     }
 
-                    Spacer(modifier = GlanceModifier.width(4.dp))
+                    Spacer(modifier = GlanceModifier.width(forecastSpacer))
 
                     Box(
                         modifier = GlanceModifier.defaultWeight(),
@@ -344,7 +356,7 @@ private fun WeatherWidgetContent(
                         PopBar(
                             pop = weather.dayAfterPop,
                             textColor = mainTextColor,
-                            blockSize = 4.dp
+                            blockSize = popBlockSize
                         )
                     }
                 }
