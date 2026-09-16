@@ -1,4 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">토끼날씨</string>
-    <string name="widget_description">2x1 실시간 날씨 위젯</string>
+    <string name="widget_description">오늘·내일·모레 날씨를 한눈에</string>
+    <string name="widget_loading">날씨 불러오는 중…</string>
+    <string name="today">오늘</string>
+    <string name="tomorrow">내일</string>
+    <string name="day_after">모레</string>
+    <string name="no_data">--</string>
 </resources>
