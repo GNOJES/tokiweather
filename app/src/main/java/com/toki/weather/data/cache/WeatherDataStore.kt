@@ -51,6 +51,9 @@ class WeatherDataStore(private val context: Context) {
 
         // 갱신 주기 키 (분 단위, 기본 30분)
         private val KEY_UPDATE_INTERVAL = intPreferencesKey("update_interval_minutes")
+
+        // 사용자 직접 지정 동네 이름 키 (비어있으면 GPS 자동 감지 사용)
+        private val KEY_CUSTOM_LOCATION_NAME = stringPreferencesKey("custom_location_name")
     }
 
     /**
@@ -142,6 +145,26 @@ class WeatherDataStore(private val context: Context) {
     suspend fun saveUpdateInterval(minutes: Int) {
         context.weatherDataStore.edit { prefs ->
             prefs[KEY_UPDATE_INTERVAL] = minutes
+        }
+    }
+
+    /**
+     * 사용자 직접 지정 동네 이름 Flow
+     */
+    val customLocationNameFlow: Flow<String> = context.weatherDataStore.data.map { prefs ->
+        prefs[KEY_CUSTOM_LOCATION_NAME] ?: ""
+    }
+
+    /**
+     * 사용자 직접 지정 동네 이름 저장 (빈 문자열이면 GPS 자동 감지로 복원)
+     */
+    suspend fun saveCustomLocationName(name: String) {
+        context.weatherDataStore.edit { prefs ->
+            if (name.isBlank()) {
+                prefs.remove(KEY_CUSTOM_LOCATION_NAME)
+            } else {
+                prefs[KEY_CUSTOM_LOCATION_NAME] = name.trim()
+            }
         }
     }
 }

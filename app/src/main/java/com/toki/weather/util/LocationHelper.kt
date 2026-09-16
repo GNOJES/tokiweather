@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
 import android.location.Location
+import android.location.LocationManager
 import android.os.Build
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -69,9 +70,27 @@ object LocationHelper {
         }
 
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+
+        // 1. 삼성 단말 하드웨어 GPS(LocationManager.GPS_PROVIDER)의 최신 위성 좌표 점검
+        // 삼성 날씨앱 등이 최근 수신한 정밀 위성 좌표(오차 <= 40m, 1시간 이내)가 있으면 우선 후보로 확보
+        var candidateLocation: Location? = null
+        if (hasFineLocationPermission(context) && locationManager != null) {
+            try {
+                val lastGps = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                if (lastGps != null && lastGps.hasAccuracy() && lastGps.accuracy <= 40f) {
+                    val ageMs = System.currentTimeMillis() - lastGps.time
+                    if (ageMs < 60 * 60 * 1000L) {
+                        Log.d(TAG, "Found fresh hardware GPS fix: accuracy=${lastGps.accuracy}m, age=${ageMs / 1000}s")
+                        candidateLocation = lastGps
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to read LocationManager.GPS_PROVIDER", e)
+            }
+        }
 
         // 고정밀 위치(GPS) 권한이 있는 경우 PRIORITY_HIGH_ACCURACY로 위성 GNSS 신호 수신
-        // (영등포동7가 vs 영등포동8가 등 인접 법정동 간 50m 오차 방지)
         val priority = if (hasFineLocationPermission(context)) {
             Priority.PRIORITY_HIGH_ACCURACY
         } else {
@@ -80,7 +99,7 @@ object LocationHelper {
 
         val location: Location? = try {
             val cts = CancellationTokenSource()
-            withTimeoutOrNull(7000L) {
+            val freshLocation = withTimeoutOrNull(7000L) {
                 suspendCancellableCoroutine { cont ->
                     fusedLocationClient.getCurrentLocation(
                         priority,
@@ -89,7 +108,6 @@ object LocationHelper {
                         if (loc != null) {
                             cont.resume(loc)
                         } else {
-                            // getCurrentLocation 실패 시 lastLocation 시도
                             fusedLocationClient.lastLocation
                                 .addOnSuccessListener { lastLoc -> cont.resume(lastLoc) }
                                 .addOnFailureListener { cont.resume(null) }
@@ -105,16 +123,25 @@ object LocationHelper {
                     }
                 }
             } ?: run {
-                Log.w(TAG, "getCurrentLocation timed out after 7s, falling back to lastLocation")
+                Log.w(TAG, "getCurrentLocation timed out after 7s, falling back to lastLocation or GPS candidate")
                 suspendCancellableCoroutine { cont ->
                     fusedLocationClient.lastLocation
                         .addOnSuccessListener { lastLoc -> cont.resume(lastLoc) }
                         .addOnFailureListener { cont.resume(null) }
                 }
             }
+
+            // 하드웨어 위성 GPS 좌표와 FusedLocation 결과 중 더 정확한(오차가 적은) 위치 선택
+            when {
+                freshLocation != null && candidateLocation != null -> {
+                    if (candidateLocation.accuracy <= freshLocation.accuracy) candidateLocation else freshLocation
+                }
+                freshLocation != null -> freshLocation
+                else -> candidateLocation
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching location", e)
-            null
+            candidateLocation
         }
 
         if (location == null) {
@@ -122,7 +149,7 @@ object LocationHelper {
             return getDefaultLocationInfo()
         }
 
-        Log.d(TAG, "Acquired coordinates: lat=${location.latitude}, lon=${location.longitude}, accuracy=${location.accuracy}m")
+        Log.d(TAG, "Acquired coordinates: lat=${location.latitude}, lon=${location.longitude}, accuracy=${location.accuracy}m, provider=${location.provider}")
 
         // 위경도 -> 기상청 격자 변환
         val grid = GridConverter.toGrid(location.latitude, location.longitude)
@@ -139,37 +166,39 @@ object LocationHelper {
     }
 
     /**
-     * 역지오코딩을 통해 "영등포동7가", "역삼동" 등 가장 정확한 동/가/읍/면 단위 지역명 추출
+     * 역지오코딩을 통해 "영등포동7가", "역삼동" 등 가장 정확한 동/가/읍/면 단위 지역명 추출 (복수 검색 결과 대조)
      */
     private suspend fun getAdminAreaName(context: Context, lat: Double, lon: Double): String {
         return try {
             val geocoder = Geocoder(context, Locale.KOREAN)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 suspendCancellableCoroutine { cont ->
-                    geocoder.getFromLocation(lat, lon, 1) { addresses ->
-                        val address = addresses.firstOrNull()
-                        val resultName = if (address != null) {
-                            extractDongName(address)
-                        } else {
-                            "현재 위치"
-                        }
-                        cont.resume(resultName)
+                    geocoder.getFromLocation(lat, lon, 5) { addresses ->
+                        cont.resume(extractBestDongName(addresses))
                     }
                 }
             } else {
                 @Suppress("DEPRECATION")
-                val addresses = geocoder.getFromLocation(lat, lon, 1)
-                val address = addresses?.firstOrNull()
-                if (address != null) {
-                    extractDongName(address)
-                } else {
-                    "현재 위치"
-                }
+                val addresses = geocoder.getFromLocation(lat, lon, 5)
+                extractBestDongName(addresses ?: emptyList())
             }
         } catch (e: Exception) {
             Log.e(TAG, "Geocoder failed", e)
             "현재 위치"
         }
+    }
+
+    private fun extractBestDongName(addresses: List<Address>): String {
+        if (addresses.isEmpty()) return "현재 위치"
+        // 1. 모든 반환 주소 중 법정동/행정동 명칭(isDongName)이 있는지 우선 탐색
+        for (addr in addresses) {
+            val dong = extractDongName(addr)
+            if (dong != "현재 위치" && isDongName(dong)) {
+                return dong
+            }
+        }
+        // 2. 발견되지 않으면 첫 번째 주소에서 추출
+        return extractDongName(addresses.first())
     }
 
     /**

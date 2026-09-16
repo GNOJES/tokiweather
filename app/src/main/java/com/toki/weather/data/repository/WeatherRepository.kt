@@ -11,6 +11,8 @@ import com.toki.weather.data.remote.RetrofitClient
 import com.toki.weather.util.DateTimeUtils
 import com.toki.weather.util.LocationHelper
 
+import kotlinx.coroutines.flow.firstOrNull
+
 /**
  * 날씨 데이터 Repository
  * 위치 조회(GPS) → 기상청 API 호출 → 데이터 가공 → DataStore 캐싱
@@ -45,7 +47,11 @@ class WeatherRepository(private val context: Context) {
         return try {
             // 0. GPS 기반 위치 및 지역 이름 획득
             val locInfo = LocationHelper.getCurrentLocationInfo(context)
-            Log.d(TAG, "Current location: ${locInfo.locationName} (nx=${locInfo.nx}, ny=${locInfo.ny})")
+            val customName = try {
+                dataStore.customLocationNameFlow.firstOrNull()?.trim() ?: ""
+            } catch (_: Exception) { "" }
+            val finalLocationName = if (customName.isNotBlank()) customName else locInfo.locationName
+            Log.d(TAG, "Current location: $finalLocationName (GPS: ${locInfo.locationName}, custom: $customName, nx=${locInfo.nx}, ny=${locInfo.ny})")
 
             // 1. 현재 기온 (초단기실황)
             val (ncstDate, ncstTime) = DateTimeUtils.getUltraSrtNcstBaseDateTime()
@@ -74,7 +80,7 @@ class WeatherRepository(private val context: Context) {
             )
 
             // 4. 데이터 가공
-            val weather = parseWeather(locInfo.locationName, ncstResponse, fcstResponse, pm10, pm25)
+            val weather = parseWeather(finalLocationName, ncstResponse, fcstResponse, pm10, pm25)
 
             // 5. 캐시 저장
             dataStore.save(weather)

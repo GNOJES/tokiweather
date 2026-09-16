@@ -41,6 +41,7 @@ import androidx.glance.appwidget.updateAll
 import com.toki.weather.data.cache.WeatherDataStore
 import com.toki.weather.data.model.CachedWeather
 import com.toki.weather.data.model.WidgetThemeConfig
+import com.toki.weather.data.repository.WeatherRepository
 import com.toki.weather.util.LocationHelper
 import com.toki.weather.widget.TokiWeatherWidget
 import com.toki.weather.worker.WeatherWorkScheduler
@@ -52,7 +53,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
 
@@ -77,12 +80,14 @@ fun SettingsScreen() {
     val cachedWeather by dataStore.weatherFlow.collectAsState(initial = CachedWeather.EMPTY)
     val savedTheme by dataStore.themeFlow.collectAsState(initial = WidgetThemeConfig.DEFAULT)
     val savedInterval by dataStore.updateIntervalFlow.collectAsState(initial = 30)
+    val savedCustomLocation by dataStore.customLocationNameFlow.collectAsState(initial = "")
 
     // 편집 중인 임시 상태
     var currentBgColor by remember { mutableStateOf(WidgetThemeConfig.DEFAULT.backgroundColorHex) }
     var currentAlpha by remember { mutableFloatStateOf(WidgetThemeConfig.DEFAULT.backgroundAlpha) }
     var currentTextColor by remember { mutableStateOf(WidgetThemeConfig.DEFAULT.textColorHex) }
     var currentInterval by remember { mutableIntStateOf(30) }
+    var customLocationName by remember { mutableStateOf("") }
     var previewGridCols by remember { mutableIntStateOf(4) }
     var previewGridRows by remember { mutableIntStateOf(5) }
     var showBgColorPicker by remember { mutableStateOf(false) }
@@ -96,6 +101,9 @@ fun SettingsScreen() {
     }
     LaunchedEffect(savedInterval) {
         currentInterval = savedInterval
+    }
+    LaunchedEffect(savedCustomLocation) {
+        customLocationName = savedCustomLocation
     }
 
     // 1. 기본 위치 권한 (Fine / Coarse) 상태
@@ -141,7 +149,61 @@ fun SettingsScreen() {
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            // [상단 고정 헤더: 스크롤해도 항상 고정 유지]
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 3.dp,
+                shadowElevation = 3.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "토끼날씨 위젯 설정",
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                val updatedTheme = WidgetThemeConfig(
+                                    backgroundColorHex = currentBgColor,
+                                    backgroundAlpha = currentAlpha,
+                                    textColorHex = currentTextColor
+                                )
+                                dataStore.saveTheme(updatedTheme)
+                                dataStore.saveUpdateInterval(currentInterval)
+                                dataStore.saveCustomLocationName(customLocationName.trim())
+
+                                Toast.makeText(context, "설정을 저장하고 날씨를 새로고침합니다.", Toast.LENGTH_SHORT).show()
+
+                                // 즉시 날씨 및 위치 새로고침 실행
+                                withContext(Dispatchers.IO) {
+                                    val repo = WeatherRepository(context)
+                                    repo.fetchAndSave()
+                                }
+
+                                WeatherWorkScheduler.schedule(context, currentInterval.toLong())
+                                TokiWeatherWidget().updateAll(context)
+
+                                (context as? android.app.Activity)?.finish()
+                            }
+                        },
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                    ) {
+                        Text("저장", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+                }
+            }
+        }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -151,44 +213,6 @@ fun SettingsScreen() {
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp, bottom = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "토끼날씨 위젯 설정",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Button(
-                    onClick = {
-                        coroutineScope.launch {
-                            val updatedTheme = WidgetThemeConfig(
-                                backgroundColorHex = currentBgColor,
-                                backgroundAlpha = currentAlpha,
-                                textColorHex = currentTextColor
-                            )
-                            dataStore.saveTheme(updatedTheme)
-                            dataStore.saveUpdateInterval(currentInterval)
-
-                            // 스케줄러 갱신 주기 재설정 & 즉시 새로고침 실행
-                            WeatherWorkScheduler.schedule(context, currentInterval.toLong())
-                            WeatherWorkScheduler.runOnce(context)
-                            TokiWeatherWidget().updateAll(context)
-
-                            Toast.makeText(context, "설정이 저장되고 날씨를 새로고침합니다.", Toast.LENGTH_SHORT).show()
-                            (context as? android.app.Activity)?.finish()
-                        }
-                    },
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
-                ) {
-                    Text("저장", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                }
-            }
 
             // 1-A. 기본 위치 권한 안내 배너
             if (!hasForegroundLocation) {
@@ -317,9 +341,9 @@ fun SettingsScreen() {
                             modifier = Modifier.width(32.dp)
                         )
                         listOf(
-                            4 to "4열 (기본)",
-                            5 to "5열 (5×5 등)",
-                            6 to "6열 (Home Up)"
+                            4 to "4열",
+                            5 to "5열",
+                            6 to "6열"
                         ).forEach { (col, label) ->
                             FilterChip(
                                 selected = previewGridCols == col,
@@ -347,7 +371,7 @@ fun SettingsScreen() {
                         )
                         listOf(
                             4 to "4행",
-                            5 to "5행 (기본)",
+                            5 to "5행",
                             6 to "6행",
                             7 to "7행"
                         ).forEach { (row, label) ->
@@ -364,11 +388,91 @@ fun SettingsScreen() {
 
                     WidgetPreviewBox(
                         weather = cachedWeather,
+                        customLocationName = customLocationName,
                         bgColorHex = currentBgColor,
                         bgAlpha = currentAlpha,
                         textColorHex = currentTextColor,
                         gridCols = previewGridCols,
                         gridRows = previewGridRows
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // 3. 위치 표기 설정 (동네 이름 직접 지정 / GPS 재측정)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "현재 위치 표기",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+
+                        TextButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    Toast.makeText(context, "GPS 위치 재측정 중...", Toast.LENGTH_SHORT).show()
+                                    withContext(Dispatchers.IO) {
+                                        val repo = WeatherRepository(context)
+                                        repo.fetchAndSave()
+                                    }
+                                    TokiWeatherWidget().updateAll(context)
+                                    Toast.makeText(context, "위치 및 날씨가 갱신되었습니다.", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_location_pin),
+                                contentDescription = "재측정",
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("GPS 재측정", fontSize = 12.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    OutlinedTextField(
+                        value = customLocationName,
+                        onValueChange = { customLocationName = it },
+                        label = { Text("동네 이름 (비워두면 GPS 자동 감지)", fontSize = 12.sp) },
+                        placeholder = { Text(cachedWeather.locationName.ifBlank { "영등포동7가" }, fontSize = 13.sp) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = {
+                            if (customLocationName.isNotBlank()) {
+                                IconButton(onClick = { customLocationName = "" }) {
+                                    Icon(
+                                        painter = painterResource(android.R.drawable.ic_menu_close_clear_cancel),
+                                        contentDescription = "지우기",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = if (customLocationName.isNotBlank()) {
+                            "현재 '${customLocationName}'(으)로 고정 표기됩니다."
+                        } else {
+                            "현재 GPS 감지 위치: '${cachedWeather.locationName}'"
+                        },
+                        fontSize = 11.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -674,6 +778,7 @@ fun SettingsScreen() {
 @Composable
 fun WidgetPreviewBox(
     weather: CachedWeather,
+    customLocationName: String = "",
     bgColorHex: String,
     bgAlpha: Float,
     textColorHex: String,
@@ -692,26 +797,26 @@ fun WidgetPreviewBox(
         val parsedText = try { Color(android.graphics.Color.parseColor(textColorHex)) } catch (_: Exception) { Color.White }
         val subText = parsedText.copy(alpha = 0.75f)
 
-        // Galaxy S25 One UI 런처 실측 2x1 물리 크기 (FHD+ 1080x2340, 폭 ~384dp, 런처 높이 ~580dp)
+        // Galaxy S25 One UI 런처 실측 2x1 물리 크기 (실제 홈화면 비율 일치)
         val previewWidth = when (gridCols) {
-            4 -> 174.dp
-            5 -> 138.dp
-            6 -> 114.dp
-            else -> ((368 - (gridCols - 1) * 6) / gridCols * 2 + 6 - 8).coerceIn(100, 220).dp
+            4 -> 184.dp
+            5 -> 168.dp
+            6 -> 154.dp
+            else -> 174.dp
         }
         val previewHeight = when (gridRows) {
-            4 -> 116.dp
-            5 -> 98.dp
-            6 -> 84.dp
-            7 -> 74.dp
-            else -> ((580 - (gridRows - 1) * 10) / gridRows - 24).coerceIn(64, 140).dp
+            4 -> 96.dp
+            5 -> 90.dp
+            6 -> 86.dp
+            7 -> 82.dp
+            else -> 90.dp
         }
 
         val isCompact = gridCols >= 5
-        val isShort = gridRows >= 7
+        val isShort = gridRows >= 6
 
         val horizPadding = if (isCompact) 8.dp else 10.dp
-        val vertPadding = if (isShort) 3.dp else 4.dp
+        val vertPadding = if (isShort) 4.dp else 5.dp
         val vertSpacer = if (isShort) 2.dp else 3.dp
 
         val interColSpacer = if (isCompact) 4.dp else 6.dp
@@ -722,13 +827,19 @@ fun WidgetPreviewBox(
         val rightWidth = totalContentWidth * (6f / 11f)
         val forecastItemWidth = (rightWidth - forecastSpacer) / 2f
 
-        val todayEmojiSize = if (isCompact) 20.sp else 22.sp
-        val todayTempSize = if (isCompact) 16.sp else 18.sp
-        val todayPmSize = if (isCompact) 9.sp else 10.sp
-        val locNameSize = if (isCompact) 9.sp else 10.sp
-        val subEmojiSize = if (isCompact) 12.sp else 13.sp
-        val subTempSize = if (isCompact) 7.5.sp else 8.5.sp
-        val popBlockSize = if (isCompact) 3.5.dp else 4.dp
+        val todayEmojiSize = if (isCompact) 19.sp else 21.sp
+        val todayTempSize = if (isCompact) 15.sp else 17.sp
+        val todayPmSize = if (isCompact) 8.5.sp else 9.5.sp
+        val locNameSize = if (isCompact) 8.5.sp else 9.5.sp
+        val subEmojiSize = if (isCompact) 11.sp else 12.sp
+        val subTempSize = if (isCompact) 7.sp else 8.sp
+        val popBlockSize = if (isCompact) 3.dp else 3.5.dp
+
+        val displayLocName = when {
+            customLocationName.isNotBlank() -> customLocationName
+            weather.lastUpdated > 0 && weather.locationName.isNotBlank() -> weather.locationName
+            else -> "영등포동7가"
+        }
 
         // 스마트폰 배경화면 시뮬레이션 컨테이너
         Box(
@@ -739,17 +850,16 @@ fun WidgetPreviewBox(
                 .padding(vertical = 16.dp, horizontal = 12.dp),
             contentAlignment = Alignment.Center
         ) {
-            // 실제 2x1 위젯 물리 크기 박스 (가로/세로 그리드에 반응하여 크기 변화)
+            // 실제 2x1 위젯 물리 크기 박스 (잘림 방지 heightIn 적용)
             Box(
                 modifier = Modifier
                     .width(previewWidth)
-                    .height(previewHeight)
+                    .heightIn(min = previewHeight)
                     .clip(RoundedCornerShape(16.dp))
                     .background(parsedBg.copy(alpha = bgAlpha))
                     .padding(horizontal = horizPadding, vertical = vertPadding),
                 contentAlignment = Alignment.Center
             ) {
-                // [Solution 1] 세로 스트레칭을 배제하고 상하 가운데 정렬로 안전 영역 유지
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -773,7 +883,7 @@ fun WidgetPreviewBox(
                             )
                             Spacer(modifier = Modifier.height(1.dp))
                             Text(
-                                text = if (weather.lastUpdated > 0) "${weather.currentTemp}°" else "26°",
+                                text = if (weather.lastUpdated > 0) "${weather.currentTemp}°" else "25°",
                                 fontSize = todayTempSize,
                                 fontWeight = FontWeight.Bold,
                                 color = parsedText,
@@ -784,10 +894,10 @@ fun WidgetPreviewBox(
                             Row(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                val pm10Val = if (weather.lastUpdated > 0 && weather.pm10 >= 0) weather.pm10 else 24
-                                val pm25Val = if (weather.lastUpdated > 0 && weather.pm25 >= 0) weather.pm25 else 12
-                                val pm10Color = if (weather.lastUpdated > 0 && weather.pm10 >= 0) weather.getPm10Color() else Color(0xFF4AA3FF)
-                                val pm25Color = if (weather.lastUpdated > 0 && weather.pm25 >= 0) weather.getPm25Color() else Color(0xFF4AA3FF)
+                                val pm10Val = if (weather.lastUpdated > 0 && weather.pm10 >= 0) weather.pm10 else 42
+                                val pm25Val = if (weather.lastUpdated > 0 && weather.pm25 >= 0) weather.pm25 else 41
+                                val pm10Color = if (weather.lastUpdated > 0 && weather.pm10 >= 0) weather.getPm10Color() else Color(0xFF43A047)
+                                val pm25Color = if (weather.lastUpdated > 0 && weather.pm25 >= 0) weather.getPm25Color() else Color(0xFFFB8C00)
 
                                 Text(
                                     text = "$pm10Val",
@@ -836,7 +946,7 @@ fun WidgetPreviewBox(
                                 )
                                 Spacer(modifier = Modifier.width(1.5.dp))
                                 Text(
-                                    text = if (weather.lastUpdated > 0) weather.locationName else "영등포동7가",
+                                    text = displayLocName,
                                     fontSize = locNameSize,
                                     fontWeight = FontWeight.Bold,
                                     color = subText,
@@ -867,13 +977,13 @@ fun WidgetPreviewBox(
                                     )
                                     Spacer(modifier = Modifier.height(1.dp))
                                     Text(
-                                        text = if (weather.lastUpdated > 0) weather.tomorrowCondition.emoji else "⛅",
+                                        text = if (weather.lastUpdated > 0) weather.tomorrowCondition.emoji else "☁️",
                                         fontSize = subEmojiSize,
                                         maxLines = 1
                                     )
                                     Spacer(modifier = Modifier.height(1.dp))
                                     Text(
-                                        text = if (weather.lastUpdated > 0) "${weather.tomorrowMin}~${weather.tomorrowMax}°" else "18~27°",
+                                        text = if (weather.lastUpdated > 0) "${weather.tomorrowMin}~${weather.tomorrowMax}°" else "18~28°",
                                         fontSize = subTempSize,
                                         color = parsedText,
                                         maxLines = 1,
@@ -897,13 +1007,13 @@ fun WidgetPreviewBox(
                                     )
                                     Spacer(modifier = Modifier.height(1.dp))
                                     Text(
-                                        text = if (weather.lastUpdated > 0) weather.dayAfterCondition.emoji else "🌧️",
+                                        text = if (weather.lastUpdated > 0) weather.dayAfterCondition.emoji else "⛅",
                                         fontSize = subEmojiSize,
                                         maxLines = 1
                                     )
                                     Spacer(modifier = Modifier.height(1.dp))
                                     Text(
-                                        text = if (weather.lastUpdated > 0) "${weather.dayAfterMin}~${weather.dayAfterMax}°" else "15~22°",
+                                        text = if (weather.lastUpdated > 0) "${weather.dayAfterMin}~${weather.dayAfterMax}°" else "19~29°",
                                         fontSize = subTempSize,
                                         color = parsedText,
                                         maxLines = 1,
@@ -960,7 +1070,7 @@ fun WidgetPreviewBox(
                                 contentAlignment = Alignment.Center
                             ) {
                                 ComposePopBar(
-                                    pop = if (weather.lastUpdated > 0) weather.dayAfterPop else 80,
+                                    pop = if (weather.lastUpdated > 0) weather.dayAfterPop else 30,
                                     textColor = parsedText,
                                     blockSize = popBlockSize
                                 )
