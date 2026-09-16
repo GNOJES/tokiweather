@@ -717,15 +717,17 @@ fun WidgetPreviewBox(
         val interColSpacer = if (isCompact) 4.dp else 6.dp
         val forecastSpacer = if (isCompact) 2.dp else 4.dp
 
-        val todayWeight = 5f
-        val rightWeight = 6f
+        val totalContentWidth = previewWidth - (horizPadding * 2) - interColSpacer
+        val todayWidth = totalContentWidth * (5f / 11f)
+        val rightWidth = totalContentWidth * (6f / 11f)
+        val forecastItemWidth = (rightWidth - forecastSpacer) / 2f
 
         val todayEmojiSize = if (isCompact) 20.sp else 22.sp
         val todayTempSize = if (isCompact) 16.sp else 18.sp
         val todayPmSize = if (isCompact) 9.sp else 10.sp
         val locNameSize = if (isCompact) 9.sp else 10.sp
         val subEmojiSize = if (isCompact) 12.sp else 13.sp
-        val subTempSize = if (isCompact) 8.sp else 9.sp
+        val subTempSize = if (isCompact) 7.5.sp else 8.5.sp
         val popBlockSize = if (isCompact) 3.5.dp else 4.dp
 
         // 스마트폰 배경화면 시뮬레이션 컨테이너
@@ -758,9 +760,9 @@ fun WidgetPreviewBox(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 좌측: 오늘 (weight = 5f)
+                        // 좌측: 오늘 (폭 = todayWidth, 5/11)
                         Column(
-                            modifier = Modifier.weight(todayWeight),
+                            modifier = Modifier.width(todayWidth),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
@@ -813,9 +815,9 @@ fun WidgetPreviewBox(
 
                         Spacer(modifier = Modifier.width(interColSpacer))
 
-                        // 우측: 상단 지역명 + 하단 내일/모레 예보 (weight = 6f)
+                        // 우측: 상단 지역명 + 하단 내일/모레 예보 (폭 = rightWidth, 6/11)
                         Column(
-                            modifier = Modifier.weight(rightWeight),
+                            modifier = Modifier.width(rightWidth),
                             verticalArrangement = Arrangement.Center
                         ) {
                             // 우측 상단: 위치 아이콘 + 지역명
@@ -844,15 +846,14 @@ fun WidgetPreviewBox(
 
                             Spacer(modifier = Modifier.height(2.dp))
 
-                            // 우측 하단: 내일 & 모레 예보 (각 weight = 1f -> 3 : 3)
+                            // 우측 하단: 내일 & 모레 예보 (각 3/11 분할)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceEvenly
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 // 내일
                                 Column(
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.width(forecastItemWidth),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center
                                 ) {
@@ -882,7 +883,7 @@ fun WidgetPreviewBox(
 
                                 // 모레
                                 Column(
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.width(forecastItemWidth),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center
                                 ) {
@@ -920,9 +921,9 @@ fun WidgetPreviewBox(
                             .wrapContentHeight(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // 오늘 (weight = 5f)
+                        // 오늘 (폭 = todayWidth, 5/11)
                         Box(
-                            modifier = Modifier.weight(todayWeight),
+                            modifier = Modifier.width(todayWidth),
                             contentAlignment = Alignment.Center
                         ) {
                             ComposePopBar(
@@ -934,13 +935,13 @@ fun WidgetPreviewBox(
 
                         Spacer(modifier = Modifier.width(interColSpacer))
 
-                        // 내일 & 모레 (weight = 6f)
+                        // 내일 & 모레 (폭 = rightWidth, 6/11)
                         Row(
-                            modifier = Modifier.weight(rightWeight),
+                            modifier = Modifier.width(rightWidth),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.width(forecastItemWidth),
                                 contentAlignment = Alignment.Center
                             ) {
                                 ComposePopBar(
@@ -953,7 +954,7 @@ fun WidgetPreviewBox(
                             Spacer(modifier = Modifier.width(forecastSpacer))
 
                             Box(
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.width(forecastItemWidth),
                                 contentAlignment = Alignment.Center
                             ) {
                                 ComposePopBar(

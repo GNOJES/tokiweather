@@ -17,6 +17,7 @@ import androidx.glance.LocalSize
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -52,6 +53,9 @@ import kotlinx.coroutines.flow.first
  * - 우측 하단: 내일 및 모레 예보 (기온 + 강수확률 4칸 바)
  */
 class TokiWeatherWidget : GlanceAppWidget() {
+
+    // 런처의 실제 물리 크기를 반영하기 위해 SizeMode.Exact 선언 (SizeMode.Single의 minWidth 130dp 고정 방지)
+    override val sizeMode: SizeMode = SizeMode.Exact
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val dataStore = WeatherDataStore(context)
@@ -100,7 +104,7 @@ private fun WeatherWidgetContent(
     val subTextColorProvider = ColorProvider(subTextColor)
 
     // 위젯 너비 및 높이 기반 반응형 비율 계산 (오늘 5, 내일 3, 모레 3)
-    val widgetWidth = LocalSize.current.width.takeIf { it.value > 50f } ?: 170.dp
+    val widgetWidth = LocalSize.current.width.takeIf { it.value > 100f } ?: 174.dp
     val widgetHeight = LocalSize.current.height.takeIf { it.value > 40f } ?: 90.dp
     val isCompact = widgetWidth < 155.dp
     val isShort = widgetHeight < 80.dp
@@ -112,15 +116,18 @@ private fun WeatherWidgetContent(
     val interColSpacer = if (isCompact) 4.dp else 6.dp
     val forecastSpacer = if (isCompact) 2.dp else 4.dp
 
+    // 5 : 3 : 3 비율에 따른 엄격한 가로 폭 계산 (오늘 5/11, 내일 3/11, 모레 3/11)
     val totalContentWidth = (widgetWidth - (horizPadding * 2) - interColSpacer).coerceAtLeast(100.dp)
     val todayWidth = totalContentWidth * (5f / 11f)
+    val rightWidth = totalContentWidth * (6f / 11f)
+    val forecastItemWidth = (rightWidth - forecastSpacer) / 2f
 
     val todayEmojiSize = if (isCompact) 20 else 22
     val todayTempSize = if (isCompact) 16 else 18
     val todayPmSize = if (isCompact) 9 else 10
     val locNameSize = if (isCompact) 9 else 10
     val subEmojiSize = if (isCompact) 12 else 13
-    val subTempSize = if (isCompact) 8 else 9
+    val subTempSize = if (isCompact) 7.5f else 8.5f
     val popBlockSize = if (isCompact) 3.5.dp else 4.dp
 
     Column(
@@ -146,7 +153,7 @@ private fun WeatherWidgetContent(
             )
         } else {
             // [상단: 날씨 정보 행] 오늘 5 : 내일 3 : 모레 3 비율
-            // defaultWeight() 및 fillMaxHeight()를 제거하여 런처 그리드 높이에 상관없이 일정한 간격 유지 (Solution 1)
+            // defaultWeight() 대신 수학적 계산 폭(todayWidth, rightWidth)을 적용하여 엄격한 5:3:3 구현
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -210,7 +217,7 @@ private fun WeatherWidgetContent(
 
                 // [우측: 상단 우측 지역명 + 하단 내일/모레 예보] 전체 가로의 6/11 비율
                 Column(
-                    modifier = GlanceModifier.defaultWeight(),
+                    modifier = GlanceModifier.width(rightWidth),
                     horizontalAlignment = Alignment.End
                 ) {
                     // 1. 우측 상단: 위치 아이콘 + 지역명
@@ -240,14 +247,14 @@ private fun WeatherWidgetContent(
 
                     Spacer(modifier = GlanceModifier.height(2.dp))
 
-                    // 2. 우측 하단: 내일 & 모레 예보 (각 defaultWeight -> 1:1 분할로 3 : 3)
+                    // 2. 우측 하단: 내일 & 모레 예보 (각 3/11 분할로 3 : 3)
                     Row(
                         modifier = GlanceModifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // 내일
                         Column(
-                            modifier = GlanceModifier.defaultWeight(),
+                            modifier = GlanceModifier.width(forecastItemWidth),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
@@ -279,7 +286,7 @@ private fun WeatherWidgetContent(
 
                         // 모레
                         Column(
-                            modifier = GlanceModifier.defaultWeight(),
+                            modifier = GlanceModifier.width(forecastItemWidth),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
@@ -333,11 +340,11 @@ private fun WeatherWidgetContent(
 
                 // 내일 & 모레 강수확률 바 (우측 6/11 공간)
                 Row(
-                    modifier = GlanceModifier.defaultWeight(),
+                    modifier = GlanceModifier.width(rightWidth),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
-                        modifier = GlanceModifier.defaultWeight(),
+                        modifier = GlanceModifier.width(forecastItemWidth),
                         contentAlignment = Alignment.Center
                     ) {
                         PopBar(
@@ -350,7 +357,7 @@ private fun WeatherWidgetContent(
                     Spacer(modifier = GlanceModifier.width(forecastSpacer))
 
                     Box(
-                        modifier = GlanceModifier.defaultWeight(),
+                        modifier = GlanceModifier.width(forecastItemWidth),
                         contentAlignment = Alignment.Center
                     ) {
                         PopBar(
