@@ -7,6 +7,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.toki.weather.data.repository.WeatherRepository
 import com.toki.weather.widget.TokiWeatherWidget
+import com.toki.weather.widget.TokiWeatherWidgetLarge
 
 /**
  * 백그라운드 날씨 데이터 업데이트 Worker
@@ -31,6 +32,7 @@ class WeatherUpdateWorker(
             // 위젯 업데이트
             try {
                 TokiWeatherWidget().updateAll(applicationContext)
+                TokiWeatherWidgetLarge().updateAll(applicationContext)
                 Log.d(TAG, "Weather update completed successfully")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to update widget", e)

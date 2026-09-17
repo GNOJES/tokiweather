@@ -136,7 +136,13 @@ private fun WeatherWidgetContent(
             .background(widgetBgColor)
             .cornerRadius(16.dp)
             .padding(horizontal = horizPadding, vertical = vertPadding)
-            .clickable(actionStartActivity<MainActivity>()),
+            .clickable(
+                actionStartActivity<MainActivity>(
+                    androidx.glance.action.actionParametersOf(
+                        androidx.glance.action.ActionParameters.Key<String>("widget_type") to "2x1"
+                    )
+                )
+            ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

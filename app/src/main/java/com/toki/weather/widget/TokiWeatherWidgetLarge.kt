@@ -125,7 +125,13 @@ private fun LargeWidgetLayout(
             .background(widgetBgColor)
             .cornerRadius(16.dp)
             .padding(horizontal = horizPadding, vertical = vertPadding)
-            .clickable(actionStartActivity<MainActivity>()),
+            .clickable(
+                actionStartActivity<MainActivity>(
+                    androidx.glance.action.actionParametersOf(
+                        androidx.glance.action.ActionParameters.Key<String>("widget_type") to "3x2"
+                    )
+                )
+            ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
