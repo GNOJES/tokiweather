@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/preview_widget_bg"
+    android:paddingLeft="12dp"
+    android:paddingRight="12dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    android:gravity="center"
+    tools:ignore="SpUsage,ContentDescription">
+
+    <!-- ─── 상단: 오늘 날씨 ─── -->
+
+    <!-- 지역명 (우측 정렬) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end|center_vertical"
+        android:paddingBottom="2dp">
+
+        <ImageView
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:src="@drawable/ic_location_pin"
+            android:layout_marginEnd="2dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="역삼동"
+            android:textColor="#B3FFFFFF"
+            android:textSize="10dp"
+            android:textStyle="bold"
+            android:singleLine="true"
+            android:includeFontPadding="false" />
+    </LinearLayout>
+
+    <!-- 오늘 날씨: 아이콘 + 온도/미세먼지 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <ImageView
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:src="@drawable/ic_weather_clear"
+            android:scaleType="fitCenter" />
+
+        <View
+            android:layout_width="6dp"
+            android:layout_height="1dp" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="26°"
+                android:textColor="#FFFFFF"
+                android:textSize="24dp"
+                android:textStyle="bold"
+                android:singleLine="true"
+                android:includeFontPadding="false" />
+
+            <!-- 미세먼지 · 초미세먼지 -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:paddingTop="1dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="24"
+                    android:textColor="#4AA3FF"
+                    android:textSize="10dp"
+                    android:textStyle="bold"
+                    android:includeFontPadding="false" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=" · "
+                    android:textColor="#B3FFFFFF"
+                    android:textSize="9dp"
+                    android:textStyle="bold"
+                    android:includeFontPadding="false" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="12"
+                    android:textColor="#4AA3FF"
+                    android:textSize="10dp"
+                    android:textStyle="bold"
+                    android:includeFontPadding="false" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 오늘 강수확률 바 -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingTop="2dp"
+        android:paddingBottom="4dp">
+        <View android:layout_width="4dp" android:layout_height="4dp" android:background="#40FFFFFF" android:layout_marginEnd="1.5dp" />
+        <View android:layout_width="4dp" android:layout_height="4dp" android:background="#40FFFFFF" android:layout_marginEnd="1.5dp" />
+        <View android:layout_width="4dp" android:layout_height="4dp" android:background="#40FFFFFF" android:layout_marginEnd="1.5dp" />
+        <View android:layout_width="4dp" android:layout_height="4dp" android:background="#40FFFFFF" />
+    </LinearLayout>
+
+    <!-- ─── 하단: 내일 / 모레 예보 ─── -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <!-- 내일 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="내일"
+                android:textColor="#B3FFFFFF"
+                android:textSize="9dp"
+                android:singleLine="true"
+                android:includeFontPadding="false" />
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_weather_cloudy"
+                android:scaleType="fitCenter"
+                android:layout_marginTop="1dp"
+                android:layout_marginBottom="1dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="18~27°"
+                android:textColor="#FFFFFF"
+                android:textSize="10dp"
+                android:singleLine="true"
+                android:includeFontPadding="false" />
+
+            <!-- 내일 강수확률 바 -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:paddingTop="2dp">
+                <View android:layout_width="4dp" android:layout_height="4dp" android:background="#4AA3FF" android:layout_marginEnd="1.5dp" />
+                <View android:layout_width="4dp" android:layout_height="4dp" android:background="#40FFFFFF" android:layout_marginEnd="1.5dp" />
+                <View android:layout_width="4dp" android:layout_height="4dp" android:background="#40FFFFFF" android:layout_marginEnd="1.5dp" />
+                <View android:layout_width="4dp" android:layout_height="4dp" android:background="#40FFFFFF" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <View
+            android:layout_width="8dp"
+            android:layout_height="match_parent" />
+
+        <!-- 모레 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="모레"
+                android:textColor="#B3FFFFFF"
+                android:textSize="9dp"
+                android:singleLine="true"
+                android:includeFontPadding="false" />
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:src="@drawable/ic_weather_rain"
+                android:scaleType="fitCenter"
+                android:layout_marginTop="1dp"
+                android:layout_marginBottom="1dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="15~22°"
+                android:textColor="#FFFFFF"
+                android:textSize="10dp"
+                android:singleLine="true"
+                android:includeFontPadding="false" />
+
+            <!-- 모레 강수확률 바 -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:paddingTop="2dp">
+                <View android:layout_width="4dp" android:layout_height="4dp" android:background="#4AA3FF" android:layout_marginEnd="1.5dp" />
+                <View android:layout_width="4dp" android:layout_height="4dp" android:background="#4AA3FF" android:layout_marginEnd="1.5dp" />
+                <View android:layout_width="4dp" android:layout_height="4dp" android:background="#4AA3FF" android:layout_marginEnd="1.5dp" />
+                <View android:layout_width="4dp" android:layout_height="4dp" android:background="#4AA3FF" />
+            </LinearLayout>
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

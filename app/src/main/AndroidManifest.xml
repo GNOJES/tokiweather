@@ -25,7 +25,7 @@
             </intent-filter>
         </activity>
 
-        <!-- Weather Widget Receiver -->
+        <!-- Weather Widget Receiver (2×1 기본형) -->
         <receiver
             android:name=".widget.TokiWeatherWidgetReceiver"
             android:exported="true">
@@ -35,6 +35,18 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/toki_weather_widget_info" />
+        </receiver>
+
+        <!-- Weather Widget Large Receiver (3×2 노바런처용) -->
+        <receiver
+            android:name=".widget.TokiWeatherWidgetLargeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/toki_weather_widget_large_info" />
         </receiver>
 
     </application>
