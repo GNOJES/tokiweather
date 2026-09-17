@@ -237,22 +237,21 @@ private fun LargeWidgetLayout(
 
             Spacer(modifier = GlanceModifier.height(8.dp))
 
-            // ─── 3. 하단: 내일 & 모레 예보 (수학적 50% 분할) ───
+            // ─── 3. 하단: 내일 & 모레 예보 (좌우 50% 균등 분할) ───
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
                 verticalAlignment = Alignment.Top
             ) {
-                // 내일
+                // 내일 (좌측 50%)
                 Column(
-                    modifier = GlanceModifier.width(forecastItemWidth),
+                    modifier = GlanceModifier.defaultWeight(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         text = "내일",
                         style = TextStyle(
                             color = subTextColorProvider,
-                            fontSize = forecastLabelSize.fixedSp(fontScale)
+                            fontSize = 9.fixedSp(fontScale)
                         ),
                         maxLines = 1
                     )
@@ -267,7 +266,8 @@ private fun LargeWidgetLayout(
                         text = "${weather.tomorrowMin}~${weather.tomorrowMax}°",
                         style = TextStyle(
                             color = textColorProvider,
-                            fontSize = forecastTempSize.fixedSp(fontScale)
+                            fontSize = 9.5f.fixedSp(fontScale),
+                            fontWeight = FontWeight.Bold
                         ),
                         maxLines = 1
                     )
@@ -279,18 +279,16 @@ private fun LargeWidgetLayout(
                     )
                 }
 
-                Spacer(modifier = GlanceModifier.width(forecastColSpacer))
-
-                // 모레
+                // 모레 (우측 50%)
                 Column(
-                    modifier = GlanceModifier.width(forecastItemWidth),
+                    modifier = GlanceModifier.defaultWeight(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         text = "모레",
                         style = TextStyle(
                             color = subTextColorProvider,
-                            fontSize = forecastLabelSize.fixedSp(fontScale)
+                            fontSize = 9.fixedSp(fontScale)
                         ),
                         maxLines = 1
                     )
@@ -305,7 +303,8 @@ private fun LargeWidgetLayout(
                         text = "${weather.dayAfterMin}~${weather.dayAfterMax}°",
                         style = TextStyle(
                             color = textColorProvider,
-                            fontSize = forecastTempSize.fixedSp(fontScale)
+                            fontSize = 9.5f.fixedSp(fontScale),
+                            fontWeight = FontWeight.Bold
                         ),
                         maxLines = 1
                     )

@@ -9,5 +9,4 @@
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen"
     android:description="@string/widget_description_large"
-    android:previewImage="@drawable/preview_widget_large"
-    android:previewLayout="@layout/widget_preview_large" />
+    android:previewImage="@drawable/preview_widget_large" />
