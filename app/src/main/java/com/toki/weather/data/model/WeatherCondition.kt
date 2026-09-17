@@ -1,5 +1,8 @@
 package com.toki.weather.data.model
 
+import androidx.annotation.DrawableRes
+import com.toki.weather.R
+
 /**
  * 날씨 상태 enum
  * SKY(하늘상태)와 PTY(강수형태) 코드를 기반으로 결정
@@ -7,16 +10,17 @@ package com.toki.weather.data.model
  */
 enum class WeatherCondition(
     val label: String,
-    val emoji: String
+    val emoji: String,
+    @DrawableRes val iconRes: Int
 ) {
-    CLEAR("맑음", "☀️"),
-    CLOUDY("구름많음", "⛅"),
-    OVERCAST("흐림", "☁️"),
-    RAIN("비", "🌧️"),
-    SLEET("비/눈", "🌨️"),
-    SNOW("눈", "❄️"),
-    SHOWER("소나기", "🌦️"),
-    UNKNOWN("알수없음", "❓");
+    CLEAR("맑음", "☀️", R.drawable.ic_weather_clear),
+    CLOUDY("구름많음", "⛅", R.drawable.ic_weather_cloudy),
+    OVERCAST("흐림", "☁️", R.drawable.ic_weather_overcast),
+    RAIN("비", "🌧️", R.drawable.ic_weather_rain),
+    SLEET("비/눈", "🌨️", R.drawable.ic_weather_sleet),
+    SNOW("눈", "❄️", R.drawable.ic_weather_snow),
+    SHOWER("소나기", "🌦️", R.drawable.ic_weather_shower),
+    UNKNOWN("알수없음", "❓", R.drawable.ic_weather_unknown);
 
     companion object {
         /**
