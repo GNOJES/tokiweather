@@ -12,7 +12,7 @@ import com.toki.weather.worker.WeatherWorkScheduler
  */
 class TokiWeatherWidgetLargeReceiver : GlanceAppWidgetReceiver() {
 
-    override val glanceAppWidget: GlanceAppWidget = TokiWeatherWidget()
+    override val glanceAppWidget: GlanceAppWidget = TokiWeatherWidgetLarge()
 
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
