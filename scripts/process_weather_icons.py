@@ -18,16 +18,7 @@ from PIL import Image
 
 CONDITIONS = ["clear", "cloudy", "overcast", "rain", "sleet", "snow", "shower", "unknown"]
 
-LOCAL_FALLBACK_SOURCES = {
-    "clear": "/Users/a220330002/.gemini/antigravity/brain/e0d627ed-d0cc-4f43-96c7-83ea1671e83a/icon_weather_clear_1789611614160.jpg",
-    "cloudy": "/Users/a220330002/.gemini/antigravity/brain/e0d627ed-d0cc-4f43-96c7-83ea1671e83a/sunny_3d_minimal_1789573146944.jpg",
-    "overcast": "/Users/a220330002/.gemini/antigravity/brain/e0d627ed-d0cc-4f43-96c7-83ea1671e83a/icon_weather_overcast_1789611632431.jpg",
-    "rain": "/Users/a220330002/.gemini/antigravity/brain/e0d627ed-d0cc-4f43-96c7-83ea1671e83a/icon_weather_rain_1789611670953.jpg",
-    "sleet": "/Users/a220330002/.gemini/antigravity/brain/e0d627ed-d0cc-4f43-96c7-83ea1671e83a/icon_weather_sleet_1789611696070.jpg",
-    "snow": "/Users/a220330002/.gemini/antigravity/brain/e0d627ed-d0cc-4f43-96c7-83ea1671e83a/icon_weather_snow_1789611717377.jpg",
-    "shower": "/Users/a220330002/.gemini/antigravity/brain/e0d627ed-d0cc-4f43-96c7-83ea1671e83a/icon_weather_shower_1789611739772.jpg",
-    "unknown": "/Users/a220330002/.gemini/antigravity/brain/e0d627ed-d0cc-4f43-96c7-83ea1671e83a/icon_weather_unknown_1789611762021.jpg",
-}
+DEFAULT_RELATIVE_DIRS = ["raw_assets/weather", "assets/weather", "raw_assets"]
 
 DEFAULT_OUTPUT_DIR = Path(__file__).resolve().parent.parent / "app" / "src" / "main" / "res" / "drawable"
 TARGET_SIZE = 192
@@ -40,8 +31,7 @@ def resolve_source_path(condition: str, cli_path: Optional[str], input_dir: Opti
     Priority:
       1. Explicit CLI argument (--<condition> <path>)
       2. File in --input-dir matching <condition>.*, *<condition>*, or special alias
-      3. File in repo raw_assets/weather/ or assets/weather/
-      4. Fallback to local dev environment path
+      3. File in repo relative paths (raw_assets/weather/, assets/weather/, raw_assets/)
     """
     # 1. Explicit CLI argument
     if cli_path:
@@ -50,53 +40,47 @@ def resolve_source_path(condition: str, cli_path: Optional[str], input_dir: Opti
             return str(p)
         raise FileNotFoundError(f"Explicit path for condition '{condition}' not found: {cli_path}")
 
-    # 2. Search in input_dir if specified
-    if input_dir and input_dir.exists():
-        # Check if known source filename exists in input_dir
-        if condition in LOCAL_FALLBACK_SOURCES:
-            known_name = Path(LOCAL_FALLBACK_SOURCES[condition]).name
-            if (input_dir / known_name).exists():
-                return str(input_dir / known_name)
+    def find_in_dir(directory: Path) -> Optional[str]:
+        if not directory.exists():
+            return None
         # Direct exact match (e.g. clear.jpg, clear.png)
         for ext in [".jpg", ".png", ".jpeg", ".webp"]:
-            candidate = input_dir / f"{condition}{ext}"
+            candidate = directory / f"{condition}{ext}"
             if candidate.exists():
                 return str(candidate)
         # Pattern match (latest file if multiple)
-        matches = sorted([p for p in input_dir.glob(f"*{condition}*.*") if p.suffix.lower() in [".jpg", ".png", ".jpeg", ".webp"]], reverse=True)
+        matches = sorted(
+            [p for p in directory.glob(f"*{condition}*.*") if p.suffix.lower() in [".jpg", ".png", ".jpeg", ".webp"]],
+            reverse=True,
+        )
         if matches:
             return str(matches[0])
         # Alias for cloudy
         if condition == "cloudy":
-            cloudy_matches = sorted([p for p in input_dir.glob("*sunny_3d_minimal*.*") if p.suffix.lower() in [".jpg", ".png", ".jpeg", ".webp"]], reverse=True)
+            cloudy_matches = sorted(
+                [p for p in directory.glob("*sunny_3d_minimal*.*") if p.suffix.lower() in [".jpg", ".png", ".jpeg", ".webp"]],
+                reverse=True,
+            )
             if cloudy_matches:
                 return str(cloudy_matches[0])
+        return None
+
+    # 2. Search in input_dir if specified
+    if input_dir:
+        match = find_in_dir(input_dir)
+        if match:
+            return match
 
     # 3. Search in relative repo asset directories
     repo_root = Path(__file__).resolve().parent.parent
-    for rel_sub in ["raw_assets/weather", "assets/weather", "raw_assets"]:
-        rel_dir = repo_root / rel_sub
-        if rel_dir.exists():
-            for ext in [".jpg", ".png", ".jpeg", ".webp"]:
-                candidate = rel_dir / f"{condition}{ext}"
-                if candidate.exists():
-                    return str(candidate)
-            matches = sorted([p for p in rel_dir.glob(f"*{condition}*.*") if p.suffix.lower() in [".jpg", ".png", ".jpeg", ".webp"]])
-            if matches:
-                return str(matches[0])
-            if condition == "cloudy":
-                cloudy_matches = sorted([p for p in rel_dir.glob("*sunny_3d_minimal*.*") if p.suffix.lower() in [".jpg", ".png", ".jpeg", ".webp"]])
-                if cloudy_matches:
-                    return str(cloudy_matches[0])
-
-    # 4. Fallback to local development path
-    fallback = LOCAL_FALLBACK_SOURCES.get(condition)
-    if fallback and os.path.exists(fallback):
-        return fallback
+    for rel_sub in DEFAULT_RELATIVE_DIRS:
+        match = find_in_dir(repo_root / rel_sub)
+        if match:
+            return match
 
     raise FileNotFoundError(
         f"Could not locate raw image for condition '{condition}'. "
-        f"Please provide --input-dir <dir> or --{condition} <path>."
+        f"Please provide --input-dir <dir>, place files in 'raw_assets/weather/', or pass --{condition} <path>."
     )
 
 
@@ -221,13 +205,22 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"Processing 8 weather icons to {output_dir}...")
-    for condition in CONDITIONS:
-        cli_override = getattr(args, condition, None)
-        src_path = resolve_source_path(condition, cli_override, input_dir)
-        out_file = output_dir / f"ic_weather_{condition}.png"
-        process_image(src_path, str(out_file), target_size=args.size)
+    try:
+        for condition in CONDITIONS:
+            cli_override = getattr(args, condition, None)
+            src_path = resolve_source_path(condition, cli_override, input_dir)
+            out_file = output_dir / f"ic_weather_{condition}.png"
+            process_image(src_path, str(out_file), target_size=args.size)
 
-    print("All 8 weather icons processed successfully!")
+        print("All 8 weather icons processed successfully!")
+    except FileNotFoundError as e:
+        print(f"\nError: {e}", file=sys.stderr)
+        print("\nHelpful Usage Instructions:", file=sys.stderr)
+        print("  1. Place raw condition images in 'raw_assets/weather/' (e.g. clear.png, cloudy.png, etc.), or", file=sys.stderr)
+        print("  2. Provide a directory with images using '--input-dir <path>', or", file=sys.stderr)
+        print("  3. Specify individual condition image paths using '--<condition> <path>' (e.g. '--clear raw/clear.png').", file=sys.stderr)
+        print("  Run 'python3 scripts/process_weather_icons.py --help' to see all available options.", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
