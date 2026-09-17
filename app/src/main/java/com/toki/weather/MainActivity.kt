@@ -13,6 +13,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -40,6 +41,7 @@ import androidx.core.content.ContextCompat
 import androidx.glance.appwidget.updateAll
 import com.toki.weather.data.cache.WeatherDataStore
 import com.toki.weather.data.model.CachedWeather
+import com.toki.weather.data.model.WeatherCondition
 import com.toki.weather.data.model.WidgetThemeConfig
 import com.toki.weather.data.repository.WeatherRepository
 import com.toki.weather.util.LocationHelper
@@ -827,11 +829,11 @@ fun WidgetPreviewBox(
         val rightWidth = totalContentWidth * (6f / 11f)
         val forecastItemWidth = (rightWidth - forecastSpacer) / 2f
 
-        val todayEmojiSize = if (isCompact) 19.sp else 21.sp
+        val todayIconSize = if (isCompact) 26.dp else 30.dp
         val todayTempSize = if (isCompact) 15.sp else 17.sp
         val todayPmSize = if (isCompact) 8.5.sp else 9.5.sp
         val locNameSize = if (isCompact) 8.5.sp else 9.5.sp
-        val subEmojiSize = if (isCompact) 11.sp else 12.sp
+        val forecastIconSize = if (isCompact) 16.dp else 18.dp
         val subTempSize = if (isCompact) 7.sp else 8.sp
         val popBlockSize = if (isCompact) 3.dp else 3.5.dp
 
@@ -840,6 +842,10 @@ fun WidgetPreviewBox(
             weather.lastUpdated > 0 && weather.locationName.isNotBlank() -> weather.locationName
             else -> "영등포동7가"
         }
+
+        val currentCondition = if (weather.lastUpdated > 0) weather.currentCondition else WeatherCondition.CLEAR
+        val tomorrowCondition = if (weather.lastUpdated > 0) weather.tomorrowCondition else WeatherCondition.OVERCAST
+        val dayAfterCondition = if (weather.lastUpdated > 0) weather.dayAfterCondition else WeatherCondition.CLOUDY
 
         // 스마트폰 배경화면 시뮬레이션 컨테이너
         Box(
@@ -876,10 +882,10 @@ fun WidgetPreviewBox(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            Text(
-                                text = if (weather.lastUpdated > 0) weather.currentCondition.emoji else "☀️",
-                                fontSize = todayEmojiSize,
-                                maxLines = 1
+                            Image(
+                                painter = painterResource(currentCondition.iconRes),
+                                contentDescription = currentCondition.label,
+                                modifier = Modifier.size(todayIconSize)
                             )
                             Spacer(modifier = Modifier.height(1.dp))
                             Text(
@@ -976,10 +982,10 @@ fun WidgetPreviewBox(
                                         maxLines = 1
                                     )
                                     Spacer(modifier = Modifier.height(1.dp))
-                                    Text(
-                                        text = if (weather.lastUpdated > 0) weather.tomorrowCondition.emoji else "☁️",
-                                        fontSize = subEmojiSize,
-                                        maxLines = 1
+                                    Image(
+                                        painter = painterResource(tomorrowCondition.iconRes),
+                                        contentDescription = tomorrowCondition.label,
+                                        modifier = Modifier.size(forecastIconSize)
                                     )
                                     Spacer(modifier = Modifier.height(1.dp))
                                     Text(
@@ -1006,10 +1012,10 @@ fun WidgetPreviewBox(
                                         maxLines = 1
                                     )
                                     Spacer(modifier = Modifier.height(1.dp))
-                                    Text(
-                                        text = if (weather.lastUpdated > 0) weather.dayAfterCondition.emoji else "⛅",
-                                        fontSize = subEmojiSize,
-                                        maxLines = 1
+                                    Image(
+                                        painter = painterResource(dayAfterCondition.iconRes),
+                                        contentDescription = dayAfterCondition.label,
+                                        modifier = Modifier.size(forecastIconSize)
                                     )
                                     Spacer(modifier = Modifier.height(1.dp))
                                     Text(
