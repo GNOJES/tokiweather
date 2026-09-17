@@ -122,11 +122,11 @@ private fun WeatherWidgetContent(
     val rightWidth = totalContentWidth * (6f / 11f)
     val forecastItemWidth = (rightWidth - forecastSpacer) / 2f
 
-    val todayEmojiSize = if (isCompact) 20 else 22
+    val todayIconSize = if (isCompact) 26.dp else 30.dp
     val todayTempSize = if (isCompact) 16 else 18
     val todayPmSize = if (isCompact) 9 else 10
     val locNameSize = if (isCompact) 9 else 10
-    val subEmojiSize = if (isCompact) 12 else 13
+    val forecastIconSize = if (isCompact) 16.dp else 18.dp
     val subTempSize = if (isCompact) 7.5f else 8.5f
     val popBlockSize = if (isCompact) 3.5.dp else 4.dp
 
@@ -163,10 +163,10 @@ private fun WeatherWidgetContent(
                     modifier = GlanceModifier.width(todayWidth),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = weather.currentCondition.emoji,
-                        style = TextStyle(fontSize = todayEmojiSize.fixedSp(fontScale)),
-                        maxLines = 1
+                    Image(
+                        provider = ImageProvider(weather.currentCondition.iconRes),
+                        contentDescription = weather.currentCondition.label,
+                        modifier = GlanceModifier.size(todayIconSize)
                     )
                     Spacer(modifier = GlanceModifier.height(1.dp))
                     Text(
@@ -266,10 +266,10 @@ private fun WeatherWidgetContent(
                                 maxLines = 1
                             )
                             Spacer(modifier = GlanceModifier.height(1.dp))
-                            Text(
-                                text = weather.tomorrowCondition.emoji,
-                                style = TextStyle(fontSize = subEmojiSize.fixedSp(fontScale)),
-                                maxLines = 1
+                            Image(
+                                provider = ImageProvider(weather.tomorrowCondition.iconRes),
+                                contentDescription = weather.tomorrowCondition.label,
+                                modifier = GlanceModifier.size(forecastIconSize)
                             )
                             Spacer(modifier = GlanceModifier.height(1.dp))
                             Text(
@@ -298,10 +298,10 @@ private fun WeatherWidgetContent(
                                 maxLines = 1
                             )
                             Spacer(modifier = GlanceModifier.height(1.dp))
-                            Text(
-                                text = weather.dayAfterCondition.emoji,
-                                style = TextStyle(fontSize = subEmojiSize.fixedSp(fontScale)),
-                                maxLines = 1
+                            Image(
+                                provider = ImageProvider(weather.dayAfterCondition.iconRes),
+                                contentDescription = weather.dayAfterCondition.label,
+                                modifier = GlanceModifier.size(forecastIconSize)
                             )
                             Spacer(modifier = GlanceModifier.height(1.dp))
                             Text(
