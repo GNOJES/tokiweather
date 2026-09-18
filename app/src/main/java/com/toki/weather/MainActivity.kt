@@ -987,8 +987,6 @@ fun WidgetPreviewBox(
                 // ─── 2. 노바런처 8×8 (3×2) 세로 2단 위젯 (138×187dp) ───
                 val previewWidth = 138.dp
                 val previewHeight = 187.dp
-                val horizPadding = 8.dp
-                val vertPadding = 8.dp
 
                 Box(
                     modifier = Modifier
@@ -996,7 +994,7 @@ fun WidgetPreviewBox(
                         .height(previewHeight)
                         .clip(RoundedCornerShape(16.dp))
                         .background(parsedBg.copy(alpha = bgAlpha))
-                        .padding(horizontal = horizPadding, vertical = vertPadding),
+                        .padding(start = 7.dp, end = 7.dp, top = 3.dp, bottom = 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -1004,7 +1002,7 @@ fun WidgetPreviewBox(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // 1. 상단: 우측 정렬 지역명
+                        // 1. 상단: 우측 정렬 지역명 (최상단 밀착)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.End,
@@ -1019,7 +1017,7 @@ fun WidgetPreviewBox(
                             Spacer(modifier = Modifier.width(2.dp))
                             Text(
                                 text = displayLocName,
-                                fontSize = 9.5.sp,
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = subText,
                                 maxLines = 1,
@@ -1027,39 +1025,47 @@ fun WidgetPreviewBox(
                             )
                         }
 
-                        // 2. 오늘 날씨: [아이콘] + [기온 & 미세먼지]
+                        // 2. 오늘 날씨: [좌측 상단 아이콘] + [우측 기온 & 2줄 미세먼지]
                         Column(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.Center,
+                                modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 2.dp),
+                                horizontalArrangement = Arrangement.Start,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Image(
                                     painter = painterResource(currentCondition.iconRes),
                                     contentDescription = currentCondition.label,
-                                    modifier = Modifier.size(36.dp)
+                                    modifier = Modifier.size(48.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    horizontalAlignment = Alignment.Start,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
                                     Text(
-                                        text = if (weather.lastUpdated > 0) "${weather.currentTemp}°" else "28°",
-                                        fontSize = 21.sp,
+                                        text = if (weather.lastUpdated > 0) "${weather.currentTemp}°" else "27°",
+                                        fontSize = 24.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = parsedText,
                                         maxLines = 1
                                     )
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        val pm10Val = if (weather.lastUpdated > 0 && weather.pm10 >= 0) weather.pm10 else 23
-                                        val pm25Val = if (weather.lastUpdated > 0 && weather.pm25 >= 0) weather.pm25 else 17
-                                        val pm10Color = if (weather.lastUpdated > 0 && weather.pm10 >= 0) weather.getPm10Color() else Color(0xFF4AA3FF)
-                                        val pm25Color = if (weather.lastUpdated > 0 && weather.pm25 >= 0) weather.getPm25Color() else Color(0xFF22C55E)
+                                    Spacer(modifier = Modifier.height(1.dp))
+                                    val pm10Val = if (weather.lastUpdated > 0 && weather.pm10 >= 0) weather.pm10 else 15
+                                    val pm25Val = if (weather.lastUpdated > 0 && weather.pm25 >= 0) weather.pm25 else 11
+                                    val pm10Color = if (weather.lastUpdated > 0 && weather.pm10 >= 0) weather.getPm10Color() else Color(0xFF4AA3FF)
+                                    val pm25Color = if (weather.lastUpdated > 0 && weather.pm25 >= 0) weather.getPm25Color() else Color(0xFF4AA3FF)
 
-                                        Text(text = "$pm10Val", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = pm10Color, maxLines = 1)
-                                        Text(text = " · ", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = subText, maxLines = 1)
-                                        Text(text = "$pm25Val", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = pm25Color, maxLines = 1)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(text = "미세먼지 ", fontSize = 8.5.sp, color = subText, maxLines = 1)
+                                        Text(text = "$pm10Val", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = pm10Color, maxLines = 1)
+                                    }
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(text = "초미세먼지 ", fontSize = 8.5.sp, color = subText, maxLines = 1)
+                                        Text(text = "$pm25Val", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = pm25Color, maxLines = 1)
                                     }
                                 }
                             }
@@ -1082,17 +1088,17 @@ fun WidgetPreviewBox(
                                 modifier = Modifier.weight(1f),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "내일", fontSize = 9.sp, color = subText, maxLines = 1)
+                                Text(text = "내일", fontSize = 9.5.sp, color = subText, maxLines = 1)
                                 Spacer(modifier = Modifier.height(1.dp))
                                 Image(
                                     painter = painterResource(tomorrowCondition.iconRes),
                                     contentDescription = tomorrowCondition.label,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(26.dp)
                                 )
                                 Spacer(modifier = Modifier.height(1.dp))
                                 Text(
-                                    text = if (weather.lastUpdated > 0) "${weather.tomorrowMin}~${weather.tomorrowMax}°" else "19~29°",
-                                    fontSize = 9.5.sp,
+                                    text = if (weather.lastUpdated > 0) "${weather.tomorrowMin}° / ${weather.tomorrowMax}°" else "19° / 30°",
+                                    fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = parsedText,
                                     maxLines = 1
@@ -1110,17 +1116,17 @@ fun WidgetPreviewBox(
                                 modifier = Modifier.weight(1f),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "모레", fontSize = 9.sp, color = subText, maxLines = 1)
+                                Text(text = "모레", fontSize = 9.5.sp, color = subText, maxLines = 1)
                                 Spacer(modifier = Modifier.height(1.dp))
                                 Image(
                                     painter = painterResource(dayAfterCondition.iconRes),
                                     contentDescription = dayAfterCondition.label,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(26.dp)
                                 )
                                 Spacer(modifier = Modifier.height(1.dp))
                                 Text(
-                                    text = if (weather.lastUpdated > 0) "${weather.dayAfterMin}~${weather.dayAfterMax}°" else "18~30°",
-                                    fontSize = 9.5.sp,
+                                    text = if (weather.lastUpdated > 0) "${weather.dayAfterMin}° / ${weather.dayAfterMax}°" else "18° / 29°",
+                                    fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = parsedText,
                                     maxLines = 1

@@ -110,13 +110,13 @@ private fun LargeWidgetLayout(
     val contentWidth = (currentWidth - (horizPadding * 2)).coerceAtLeast(100.dp)
     val forecastItemWidth = (contentWidth - forecastColSpacer) / 2f
 
-    val todayIconSize = if (isNarrow) 34.dp else 38.dp
-    val todayTempSize = if (isNarrow) 20 else 22
-    val todayPmSize = if (isNarrow) 9 else 10
-    val locNameSize = if (isNarrow) 9 else 10
-    val forecastIconSize = if (isNarrow) 18.dp else 20.dp
-    val forecastTempSize = if (isNarrow) 8.5f else 9.5f
-    val forecastLabelSize = if (isNarrow) 8f else 9f
+    val todayIconSize = if (isNarrow) 44.dp else 48.dp
+    val todayTempSize = if (isNarrow) 22 else 24
+    val todayPmSize = if (isNarrow) 8.5f else 9f
+    val locNameSize = if (isNarrow) 9.5f else 10f
+    val forecastIconSize = if (isNarrow) 24.dp else 26.dp
+    val forecastTempSize = if (isNarrow) 9.5f else 10.5f
+    val forecastLabelSize = if (isNarrow) 8.5f else 9.5f
     val popBlockSize = if (isNarrow) 3.5.dp else 4.dp
 
     Column(
@@ -124,7 +124,7 @@ private fun LargeWidgetLayout(
             .fillMaxSize()
             .background(widgetBgColor)
             .cornerRadius(16.dp)
-            .padding(horizontal = horizPadding, vertical = vertPadding)
+            .padding(start = 7.dp, end = 7.dp, top = 3.dp, bottom = 6.dp)
             .clickable(
                 actionStartActivity<MainActivity>(
                     androidx.glance.action.actionParametersOf(
@@ -147,7 +147,7 @@ private fun LargeWidgetLayout(
                 modifier = GlanceModifier.fillMaxWidth()
             )
         } else {
-            // ─── 1. 상단: 우측 정렬 지역명 ───
+            // ─── 1. 상단: 우측 정렬 지역명 (최상단 밀착) ───
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.End,
@@ -172,12 +172,12 @@ private fun LargeWidgetLayout(
                 )
             }
 
-            Spacer(modifier = GlanceModifier.height(3.dp))
+            Spacer(modifier = GlanceModifier.height(2.dp))
 
-            // ─── 2. 오늘 날씨: [아이콘] + [기온 & 미세먼지] ───
+            // ─── 2. 오늘 날씨: [좌측 상단 아이콘] + [우측 기온 & 2줄 미세먼지] ───
             Row(
-                modifier = GlanceModifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = GlanceModifier.fillMaxWidth().padding(start = 4.dp, end = 2.dp),
+                horizontalAlignment = Alignment.Start,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Image(
@@ -185,9 +185,11 @@ private fun LargeWidgetLayout(
                     contentDescription = weather.currentCondition.label,
                     modifier = GlanceModifier.size(todayIconSize)
                 )
-                Spacer(modifier = GlanceModifier.width(6.dp))
+                Spacer(modifier = GlanceModifier.width(8.dp))
                 Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    modifier = GlanceModifier.defaultWeight(),
+                    horizontalAlignment = Alignment.Start,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = "${weather.currentTemp}°",
@@ -198,25 +200,34 @@ private fun LargeWidgetLayout(
                         ),
                         maxLines = 1
                     )
-                    // 미세먼지 · 초미세먼지
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Spacer(modifier = GlanceModifier.height(1.dp))
+                    // 미세먼지
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = if (weather.pm10 >= 0) "${weather.pm10}" else "-",
+                            text = "미세먼지 ",
                             style = TextStyle(
-                                color = ColorProvider(weather.getPm10Color()),
-                                fontSize = todayPmSize.fixedSp(fontScale),
-                                fontWeight = FontWeight.Bold
+                                color = subTextColorProvider,
+                                fontSize = todayPmSize.fixedSp(fontScale)
                             ),
                             maxLines = 1
                         )
                         Text(
-                            text = " · ",
+                            text = if (weather.pm10 >= 0) "${weather.pm10}" else "-",
+                            style = TextStyle(
+                                color = ColorProvider(weather.getPm10Color()),
+                                fontSize = (todayPmSize + 0.5f).fixedSp(fontScale),
+                                fontWeight = FontWeight.Bold
+                            ),
+                            maxLines = 1
+                        )
+                    }
+                    // 초미세먼지
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "초미세먼지 ",
                             style = TextStyle(
                                 color = subTextColorProvider,
-                                fontSize = (todayPmSize - 1).fixedSp(fontScale),
-                                fontWeight = FontWeight.Bold
+                                fontSize = todayPmSize.fixedSp(fontScale)
                             ),
                             maxLines = 1
                         )
@@ -224,7 +235,7 @@ private fun LargeWidgetLayout(
                             text = if (weather.pm25 >= 0) "${weather.pm25}" else "-",
                             style = TextStyle(
                                 color = ColorProvider(weather.getPm25Color()),
-                                fontSize = todayPmSize.fixedSp(fontScale),
+                                fontSize = (todayPmSize + 0.5f).fixedSp(fontScale),
                                 fontWeight = FontWeight.Bold
                             ),
                             maxLines = 1
@@ -234,14 +245,14 @@ private fun LargeWidgetLayout(
             }
 
             // 오늘 강수확률 바
-            Spacer(modifier = GlanceModifier.height(2.dp))
+            Spacer(modifier = GlanceModifier.height(3.dp))
             WidgetPopBar(
                 pop = weather.todayPop,
                 textColor = mainTextColor,
                 blockSize = popBlockSize
             )
 
-            Spacer(modifier = GlanceModifier.height(8.dp))
+            Spacer(modifier = GlanceModifier.height(6.dp))
 
             // ─── 3. 하단: 내일 & 모레 예보 (좌우 50% 균등 분할) ───
             Row(
@@ -257,7 +268,7 @@ private fun LargeWidgetLayout(
                         text = "내일",
                         style = TextStyle(
                             color = subTextColorProvider,
-                            fontSize = 9.fixedSp(fontScale)
+                            fontSize = forecastLabelSize.fixedSp(fontScale)
                         ),
                         maxLines = 1
                     )
@@ -269,10 +280,10 @@ private fun LargeWidgetLayout(
                     )
                     Spacer(modifier = GlanceModifier.height(1.dp))
                     Text(
-                        text = "${weather.tomorrowMin}~${weather.tomorrowMax}°",
+                        text = "${weather.tomorrowMin}° / ${weather.tomorrowMax}°",
                         style = TextStyle(
                             color = textColorProvider,
-                            fontSize = 9.5f.fixedSp(fontScale),
+                            fontSize = forecastTempSize.fixedSp(fontScale),
                             fontWeight = FontWeight.Bold
                         ),
                         maxLines = 1
@@ -294,7 +305,7 @@ private fun LargeWidgetLayout(
                         text = "모레",
                         style = TextStyle(
                             color = subTextColorProvider,
-                            fontSize = 9.fixedSp(fontScale)
+                            fontSize = forecastLabelSize.fixedSp(fontScale)
                         ),
                         maxLines = 1
                     )
@@ -306,10 +317,10 @@ private fun LargeWidgetLayout(
                     )
                     Spacer(modifier = GlanceModifier.height(1.dp))
                     Text(
-                        text = "${weather.dayAfterMin}~${weather.dayAfterMax}°",
+                        text = "${weather.dayAfterMin}° / ${weather.dayAfterMax}°",
                         style = TextStyle(
                             color = textColorProvider,
-                            fontSize = 9.5f.fixedSp(fontScale),
+                            fontSize = forecastTempSize.fixedSp(fontScale),
                             fontWeight = FontWeight.Bold
                         ),
                         maxLines = 1
