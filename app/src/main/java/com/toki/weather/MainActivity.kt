@@ -1025,14 +1025,14 @@ fun WidgetPreviewBox(
                             )
                         }
 
-                        // 2. 오늘 날씨: [좌측 상단 아이콘] + [우측 기온 & 2줄 미세먼지]
+                        // 2. 오늘 날씨: [아이콘] + [기온 & 2줄 미세먼지] (가운데 정렬)
                         Column(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 2.dp),
-                                horizontalArrangement = Arrangement.Start,
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Image(
@@ -1040,9 +1040,8 @@ fun WidgetPreviewBox(
                                     contentDescription = currentCondition.label,
                                     modifier = Modifier.size(48.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
                                 Column(
-                                    modifier = Modifier.weight(1f),
                                     horizontalAlignment = Alignment.Start,
                                     verticalArrangement = Arrangement.Center
                                 ) {

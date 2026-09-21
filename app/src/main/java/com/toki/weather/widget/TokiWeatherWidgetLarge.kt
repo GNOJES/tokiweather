@@ -174,10 +174,10 @@ private fun LargeWidgetLayout(
 
             Spacer(modifier = GlanceModifier.height(2.dp))
 
-            // ─── 2. 오늘 날씨: [좌측 상단 아이콘] + [우측 기온 & 2줄 미세먼지] ───
+            // ─── 2. 오늘 날씨: [아이콘] + [기온 & 2줄 미세먼지] (가운데 정렬) ───
             Row(
-                modifier = GlanceModifier.fillMaxWidth().padding(start = 4.dp, end = 2.dp),
-                horizontalAlignment = Alignment.Start,
+                modifier = GlanceModifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Image(
@@ -185,9 +185,8 @@ private fun LargeWidgetLayout(
                     contentDescription = weather.currentCondition.label,
                     modifier = GlanceModifier.size(todayIconSize)
                 )
-                Spacer(modifier = GlanceModifier.width(8.dp))
+                Spacer(modifier = GlanceModifier.width(10.dp))
                 Column(
-                    modifier = GlanceModifier.defaultWeight(),
                     horizontalAlignment = Alignment.Start,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
