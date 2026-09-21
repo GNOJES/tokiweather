@@ -1052,29 +1052,49 @@ fun WidgetPreviewBox(
                                         color = parsedText,
                                         maxLines = 1
                                     )
-                                    Spacer(modifier = Modifier.height(1.dp))
-                                    val pm10Val = if (weather.lastUpdated > 0 && weather.pm10 >= 0) weather.pm10 else 15
-                                    val pm25Val = if (weather.lastUpdated > 0 && weather.pm25 >= 0) weather.pm25 else 11
-                                    val pm10Color = if (weather.lastUpdated > 0 && weather.pm10 >= 0) weather.getPm10Color() else Color(0xFF4AA3FF)
-                                    val pm25Color = if (weather.lastUpdated > 0 && weather.pm25 >= 0) weather.getPm25Color() else Color(0xFF4AA3FF)
-
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    val todayPopVal = if (weather.lastUpdated > 0) weather.todayPop else 10
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(text = "미세먼지 ", fontSize = 8.5.sp, color = subText, maxLines = 1)
-                                        Text(text = "$pm10Val", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = pm10Color, maxLines = 1)
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_rain_drop),
+                                            contentDescription = "강수확률",
+                                            tint = Color(0xFF4AA3FF),
+                                            modifier = Modifier.size(10.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(2.dp))
+                                        Text(
+                                            text = "$todayPopVal%",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = subText,
+                                            maxLines = 1
+                                        )
                                     }
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(text = "초미세먼지 ", fontSize = 8.5.sp, color = subText, maxLines = 1)
-                                        Text(text = "$pm25Val", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = pm25Color, maxLines = 1)
-                                    }
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                val pm10Color = if (weather.lastUpdated > 0 && weather.pm10 >= 0) weather.getPm10Color() else Color(0xFF4AA3FF)
+                                val pm25Color = if (weather.lastUpdated > 0 && weather.pm25 >= 0) weather.getPm25Color() else Color(0xFF4AA3FF)
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_circle_dot),
+                                        contentDescription = "미세먼지",
+                                        tint = pm10Color,
+                                        modifier = Modifier.size(7.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(5.dp))
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_circle_dot),
+                                        contentDescription = "초미세먼지",
+                                        tint = pm25Color,
+                                        modifier = Modifier.size(7.dp)
+                                    )
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(3.dp))
-                            ComposePopBar(
-                                pop = if (weather.lastUpdated > 0) weather.todayPop else 10,
-                                textColor = parsedText,
-                                blockSize = 3.5.dp
-                            )
+                            Spacer(modifier = Modifier.height(8.dp))
                         }
 
                         // 3. 하단: 내일 & 모레 예보 (좌우 50% 균등 분할)

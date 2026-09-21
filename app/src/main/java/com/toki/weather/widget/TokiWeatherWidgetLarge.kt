@@ -174,7 +174,7 @@ private fun LargeWidgetLayout(
 
             Spacer(modifier = GlanceModifier.height(2.dp))
 
-            // ─── 2. 오늘 날씨: [아이콘] + [기온 & 2줄 미세먼지] (가운데 정렬) ───
+            // ─── 2. 오늘 날씨: [아이콘] + [기온 & 강수확률] + [미세/초미세 동그라미 2열] (가운데 정렬) ───
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -199,59 +199,52 @@ private fun LargeWidgetLayout(
                         ),
                         maxLines = 1
                     )
-                    Spacer(modifier = GlanceModifier.height(1.dp))
-                    // 미세먼지
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Spacer(modifier = GlanceModifier.height(2.dp))
+                    // 강수확률: [비 아이콘] + %
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            provider = ImageProvider(R.drawable.ic_rain_drop),
+                            contentDescription = "강수확률",
+                            colorFilter = ColorFilter.tint(ColorProvider(ComposeColor(0xFF4AA3FF))),
+                            modifier = GlanceModifier.size(10.dp)
+                        )
+                        Spacer(modifier = GlanceModifier.width(2.dp))
                         Text(
-                            text = "미세먼지 ",
+                            text = "${weather.todayPop}%",
                             style = TextStyle(
                                 color = subTextColorProvider,
-                                fontSize = todayPmSize.fixedSp(fontScale)
-                            ),
-                            maxLines = 1
-                        )
-                        Text(
-                            text = if (weather.pm10 >= 0) "${weather.pm10}" else "-",
-                            style = TextStyle(
-                                color = ColorProvider(weather.getPm10Color()),
-                                fontSize = (todayPmSize + 0.5f).fixedSp(fontScale),
-                                fontWeight = FontWeight.Bold
-                            ),
-                            maxLines = 1
-                        )
-                    }
-                    // 초미세먼지
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "초미세먼지 ",
-                            style = TextStyle(
-                                color = subTextColorProvider,
-                                fontSize = todayPmSize.fixedSp(fontScale)
-                            ),
-                            maxLines = 1
-                        )
-                        Text(
-                            text = if (weather.pm25 >= 0) "${weather.pm25}" else "-",
-                            style = TextStyle(
-                                color = ColorProvider(weather.getPm25Color()),
-                                fontSize = (todayPmSize + 0.5f).fixedSp(fontScale),
+                                fontSize = (todayPmSize + 1.5f).fixedSp(fontScale),
                                 fontWeight = FontWeight.Bold
                             ),
                             maxLines = 1
                         )
                     }
                 }
+                Spacer(modifier = GlanceModifier.width(10.dp))
+                // 미세먼지(위), 초미세먼지(아래) 작은 컬러 동그라미 2열
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_circle_dot),
+                        contentDescription = "미세먼지",
+                        colorFilter = ColorFilter.tint(ColorProvider(weather.getPm10Color())),
+                        modifier = GlanceModifier.size(7.dp)
+                    )
+                    Spacer(modifier = GlanceModifier.height(5.dp))
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_circle_dot),
+                        contentDescription = "초미세먼지",
+                        colorFilter = ColorFilter.tint(ColorProvider(weather.getPm25Color())),
+                        modifier = GlanceModifier.size(7.dp)
+                    )
+                }
             }
 
-            // 오늘 강수확률 바
-            Spacer(modifier = GlanceModifier.height(3.dp))
-            WidgetPopBar(
-                pop = weather.todayPop,
-                textColor = mainTextColor,
-                blockSize = popBlockSize
-            )
-
-            Spacer(modifier = GlanceModifier.height(6.dp))
+            Spacer(modifier = GlanceModifier.height(8.dp))
 
             // ─── 3. 하단: 내일 & 모레 예보 (좌우 50% 균등 분할) ───
             Row(
