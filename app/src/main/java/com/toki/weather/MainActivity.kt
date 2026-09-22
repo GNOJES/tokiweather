@@ -44,6 +44,7 @@ import com.toki.weather.data.model.CachedWeather
 import com.toki.weather.data.model.WeatherCondition
 import com.toki.weather.data.model.WidgetThemeConfig
 import com.toki.weather.data.repository.WeatherRepository
+import com.toki.weather.util.DateTimeUtils
 import com.toki.weather.util.LocationHelper
 import com.toki.weather.widget.TokiWeatherWidget
 import com.toki.weather.widget.TokiWeatherWidgetLarge
@@ -1002,22 +1003,29 @@ fun WidgetPreviewBox(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // 1. 상단: 우측 정렬 지역명 (최상단 밀착)
+                        // 1. 상단: 좌측 현재 날짜 + 우측 현재 위치 (최상단 밀착)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Text(
+                                text = DateTimeUtils.todayDateWithDayOfWeekString(),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = subText,
+                                maxLines = 1
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
                             Icon(
                                 painter = painterResource(R.drawable.ic_location_pin),
                                 contentDescription = "위치",
                                 tint = subText,
-                                modifier = Modifier.size(8.dp)
+                                modifier = Modifier.size(9.dp)
                             )
                             Spacer(modifier = Modifier.width(2.dp))
                             Text(
                                 text = displayLocName,
-                                fontSize = 10.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = subText,
                                 maxLines = 1,
@@ -1025,7 +1033,7 @@ fun WidgetPreviewBox(
                             )
                         }
 
-                        // 2. 오늘 날씨: [아이콘] + [기온 & 2줄 미세먼지] (가운데 정렬)
+                        // 2. 오늘 날씨: [아이콘] + [기온 & 강수확률] + [미세/초미세 동그라미 2열] (가운데 정렬)
                         Column(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -1038,7 +1046,7 @@ fun WidgetPreviewBox(
                                 Image(
                                     painter = painterResource(currentCondition.iconRes),
                                     contentDescription = currentCondition.label,
-                                    modifier = Modifier.size(48.dp)
+                                    modifier = Modifier.size(54.dp)
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column(
@@ -1047,7 +1055,7 @@ fun WidgetPreviewBox(
                                 ) {
                                     Text(
                                         text = if (weather.lastUpdated > 0) "${weather.currentTemp}°" else "27°",
-                                        fontSize = 24.sp,
+                                        fontSize = 27.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = parsedText,
                                         maxLines = 1
@@ -1059,12 +1067,12 @@ fun WidgetPreviewBox(
                                             painter = painterResource(R.drawable.ic_rain_drop),
                                             contentDescription = "강수확률",
                                             tint = Color(0xFF4AA3FF),
-                                            modifier = Modifier.size(10.dp)
+                                            modifier = Modifier.size(11.dp)
                                         )
-                                        Spacer(modifier = Modifier.width(2.dp))
+                                        Spacer(modifier = Modifier.width(2.5.dp))
                                         Text(
                                             text = "$todayPopVal%",
-                                            fontSize = 10.sp,
+                                            fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = subText,
                                             maxLines = 1
@@ -1082,19 +1090,19 @@ fun WidgetPreviewBox(
                                         painter = painterResource(R.drawable.ic_circle_dot),
                                         contentDescription = "미세먼지",
                                         tint = pm10Color,
-                                        modifier = Modifier.size(7.dp)
+                                        modifier = Modifier.size(8.dp)
                                     )
                                     Spacer(modifier = Modifier.height(5.dp))
                                     Icon(
                                         painter = painterResource(R.drawable.ic_circle_dot),
                                         contentDescription = "초미세먼지",
                                         tint = pm25Color,
-                                        modifier = Modifier.size(7.dp)
+                                        modifier = Modifier.size(8.dp)
                                     )
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(5.dp))
                         }
 
                         // 3. 하단: 내일 & 모레 예보 (좌우 50% 균등 분할)
@@ -1107,17 +1115,17 @@ fun WidgetPreviewBox(
                                 modifier = Modifier.weight(1f),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "내일", fontSize = 9.5.sp, color = subText, maxLines = 1)
+                                Text(text = "내일", fontSize = 10.5.sp, color = subText, maxLines = 1)
                                 Spacer(modifier = Modifier.height(1.dp))
                                 Image(
                                     painter = painterResource(tomorrowCondition.iconRes),
                                     contentDescription = tomorrowCondition.label,
-                                    modifier = Modifier.size(26.dp)
+                                    modifier = Modifier.size(29.dp)
                                 )
                                 Spacer(modifier = Modifier.height(1.dp))
                                 Text(
                                     text = if (weather.lastUpdated > 0) "${weather.tomorrowMin}° / ${weather.tomorrowMax}°" else "19° / 30°",
-                                    fontSize = 10.sp,
+                                    fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = parsedText,
                                     maxLines = 1
@@ -1126,7 +1134,7 @@ fun WidgetPreviewBox(
                                 ComposePopBar(
                                     pop = if (weather.lastUpdated > 0) weather.tomorrowPop else 20,
                                     textColor = parsedText,
-                                    blockSize = 3.5.dp
+                                    blockSize = 4.dp
                                 )
                             }
 
@@ -1135,26 +1143,26 @@ fun WidgetPreviewBox(
                                 modifier = Modifier.weight(1f),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "모레", fontSize = 9.5.sp, color = subText, maxLines = 1)
+                                Text(text = "모레", fontSize = 10.5.sp, color = subText, maxLines = 1)
                                 Spacer(modifier = Modifier.height(1.dp))
                                 Image(
                                     painter = painterResource(dayAfterCondition.iconRes),
                                     contentDescription = dayAfterCondition.label,
-                                    modifier = Modifier.size(26.dp)
+                                    modifier = Modifier.size(29.dp)
                                 )
                                 Spacer(modifier = Modifier.height(1.dp))
                                 Text(
-                                    text = if (weather.lastUpdated > 0) "${weather.dayAfterMin}° / ${weather.dayAfterMax}°" else "18° / 29°",
-                                    fontSize = 10.sp,
+                                    text = if (weather.lastUpdated > 0) "${weather.dayAfterMin}° / ${weather.dayAfterMax}°" else "19° / 29°",
+                                    fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = parsedText,
                                     maxLines = 1
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 ComposePopBar(
-                                    pop = if (weather.lastUpdated > 0) weather.dayAfterPop else 40,
+                                    pop = if (weather.lastUpdated > 0) weather.dayAfterPop else 10,
                                     textColor = parsedText,
-                                    blockSize = 3.5.dp
+                                    blockSize = 4.dp
                                 )
                             }
                         }

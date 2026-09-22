@@ -3,6 +3,7 @@ package com.toki.weather.util
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * 기상청 API 호출에 필요한 날짜/시간 유틸리티
@@ -11,6 +12,7 @@ object DateTimeUtils {
 
     private val DATE_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd")
     private val TIME_FORMAT = DateTimeFormatter.ofPattern("HHmm")
+    private val DATE_WITH_DAY_FORMAT = DateTimeFormatter.ofPattern("M/d(E)", Locale.KOREAN)
 
     /**
      * 단기예보 발표 시각 목록 (하루 8회)
@@ -70,6 +72,12 @@ object DateTimeUtils {
      * 오늘 날짜 문자열 (YYYYMMDD)
      */
     fun todayString(): String = LocalDate.now().format(DATE_FORMAT)
+
+    /**
+     * 오늘 날짜 및 요일 문자열 (M/d(E), 예: 9/22(화))
+     */
+    fun todayDateWithDayOfWeekString(date: LocalDate = LocalDate.now()): String =
+        date.format(DATE_WITH_DAY_FORMAT)
 
     /**
      * 내일 날짜 문자열 (YYYYMMDD)

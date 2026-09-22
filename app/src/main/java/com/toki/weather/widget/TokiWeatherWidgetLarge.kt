@@ -42,6 +42,7 @@ import com.toki.weather.R
 import com.toki.weather.data.cache.WeatherDataStore
 import com.toki.weather.data.model.CachedWeather
 import com.toki.weather.data.model.WidgetThemeConfig
+import com.toki.weather.util.DateTimeUtils
 import kotlinx.coroutines.flow.first
 
 /**
@@ -110,141 +111,155 @@ private fun LargeWidgetLayout(
     val contentWidth = (currentWidth - (horizPadding * 2)).coerceAtLeast(100.dp)
     val forecastItemWidth = (contentWidth - forecastColSpacer) / 2f
 
-    val todayIconSize = if (isNarrow) 44.dp else 48.dp
-    val todayTempSize = if (isNarrow) 22 else 24
-    val todayPmSize = if (isNarrow) 8.5f else 9f
-    val locNameSize = if (isNarrow) 9.5f else 10f
-    val forecastIconSize = if (isNarrow) 24.dp else 26.dp
-    val forecastTempSize = if (isNarrow) 9.5f else 10.5f
-    val forecastLabelSize = if (isNarrow) 8.5f else 9.5f
-    val popBlockSize = if (isNarrow) 3.5.dp else 4.dp
+    val todayIconSize = if (isNarrow) 48.dp else 54.dp
+    val todayTempSize = if (isNarrow) 25 else 27
+    val todayPmSize = if (isNarrow) 9.5f else 10f
+    val locNameSize = if (isNarrow) 10.5f else 11f
+    val forecastIconSize = if (isNarrow) 27.dp else 29.dp
+    val forecastTempSize = if (isNarrow) 10.5f else 11.5f
+    val forecastLabelSize = if (isNarrow) 9.5f else 10.5f
+    val popBlockSize = if (isNarrow) 4.dp else 4.5.dp
 
-    Column(
+    Box(
         modifier = GlanceModifier
             .fillMaxSize()
-            .background(widgetBgColor)
-            .cornerRadius(16.dp)
-            .padding(start = 7.dp, end = 7.dp, top = 3.dp, bottom = 6.dp)
-            .clickable(
-                actionStartActivity<MainActivity>(
-                    androidx.glance.action.actionParametersOf(
-                        androidx.glance.action.ActionParameters.Key<String>("widget_type") to "3x2"
-                    )
-                )
-            ),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(vertical = 5.dp)
     ) {
-        if (!hasData) {
-            Text(
-                text = "${weather.locationName} · 날씨 불러오는 중…",
-                style = TextStyle(
-                    color = textColorProvider,
-                    fontSize = 11.fixedSp(fontScale),
-                    textAlign = TextAlign.Center
+        Column(
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .background(widgetBgColor)
+                .cornerRadius(16.dp)
+                .padding(start = 7.dp, end = 7.dp, top = 2.dp, bottom = 4.dp)
+                .clickable(
+                    actionStartActivity<MainActivity>(
+                        androidx.glance.action.actionParametersOf(
+                            androidx.glance.action.ActionParameters.Key<String>("widget_type") to "3x2"
+                        )
+                    )
                 ),
-                maxLines = 1,
-                modifier = GlanceModifier.fillMaxWidth()
-            )
-        } else {
-            // ─── 1. 상단: 우측 정렬 지역명 (최상단 밀착) ───
-            Row(
-                modifier = GlanceModifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Image(
-                    provider = ImageProvider(R.drawable.ic_location_pin),
-                    contentDescription = "위치",
-                    colorFilter = ColorFilter.tint(subTextColorProvider),
-                    modifier = GlanceModifier.size(8.dp)
-                )
-                Spacer(modifier = GlanceModifier.width(2.dp))
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (!hasData) {
                 Text(
-                    text = weather.locationName,
+                    text = "${weather.locationName} · 날씨 불러오는 중…",
                     style = TextStyle(
-                        color = subTextColorProvider,
-                        fontSize = locNameSize.fixedSp(fontScale),
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.End
+                        color = textColorProvider,
+                        fontSize = 11.fixedSp(fontScale),
+                        textAlign = TextAlign.Center
                     ),
-                    maxLines = 1
+                    maxLines = 1,
+                    modifier = GlanceModifier.fillMaxWidth()
                 )
-            }
-
-            Spacer(modifier = GlanceModifier.height(2.dp))
-
-            // ─── 2. 오늘 날씨: [아이콘] + [기온 & 강수확률] + [미세/초미세 동그라미 2열] (가운데 정렬) ───
-            Row(
-                modifier = GlanceModifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Image(
-                    provider = ImageProvider(weather.currentCondition.iconRes),
-                    contentDescription = weather.currentCondition.label,
-                    modifier = GlanceModifier.size(todayIconSize)
-                )
-                Spacer(modifier = GlanceModifier.width(10.dp))
-                Column(
-                    horizontalAlignment = Alignment.Start,
+            } else {
+                // ─── 1. 상단: 좌측 현재 날짜(9/22(화)) + 우측 현재 위치 (최상단 밀착) ───
+                Row(
+                    modifier = GlanceModifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "${weather.currentTemp}°",
+                        text = DateTimeUtils.todayDateWithDayOfWeekString(),
                         style = TextStyle(
-                            color = textColorProvider,
-                            fontSize = todayTempSize.fixedSp(fontScale),
+                            color = subTextColorProvider,
+                            fontSize = locNameSize.fixedSp(fontScale),
                             fontWeight = FontWeight.Bold
                         ),
                         maxLines = 1
                     )
-                    Spacer(modifier = GlanceModifier.height(2.dp))
-                    // 강수확률: [비 아이콘] + %
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Image(
-                            provider = ImageProvider(R.drawable.ic_rain_drop),
-                            contentDescription = "강수확률",
-                            colorFilter = ColorFilter.tint(ColorProvider(ComposeColor(0xFF4AA3FF))),
-                            modifier = GlanceModifier.size(10.dp)
-                        )
-                        Spacer(modifier = GlanceModifier.width(2.dp))
-                        Text(
-                            text = "${weather.todayPop}%",
-                            style = TextStyle(
-                                color = subTextColorProvider,
-                                fontSize = (todayPmSize + 1.5f).fixedSp(fontScale),
-                                fontWeight = FontWeight.Bold
-                            ),
-                            maxLines = 1
-                        )
-                    }
+                    Spacer(modifier = GlanceModifier.defaultWeight())
+                    Image(
+                        provider = ImageProvider(R.drawable.ic_location_pin),
+                        contentDescription = "위치",
+                        colorFilter = ColorFilter.tint(subTextColorProvider),
+                        modifier = GlanceModifier.size(9.dp)
+                    )
+                    Spacer(modifier = GlanceModifier.width(2.dp))
+                    Text(
+                        text = weather.locationName,
+                        style = TextStyle(
+                            color = subTextColorProvider,
+                            fontSize = locNameSize.fixedSp(fontScale),
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.End
+                        ),
+                        maxLines = 1
+                    )
                 }
-                Spacer(modifier = GlanceModifier.width(10.dp))
-                // 미세먼지(위), 초미세먼지(아래) 작은 컬러 동그라미 2열
-                Column(
+
+                Spacer(modifier = GlanceModifier.height(1.dp))
+
+                // ─── 2. 오늘 날씨: [아이콘] + [기온 & 강수확률] + [미세/초미세 동그라미 2열] (가운데 정렬) ───
+                Row(
+                    modifier = GlanceModifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Image(
-                        provider = ImageProvider(R.drawable.ic_circle_dot),
-                        contentDescription = "미세먼지",
-                        colorFilter = ColorFilter.tint(ColorProvider(weather.getPm10Color())),
-                        modifier = GlanceModifier.size(7.dp)
+                        provider = ImageProvider(weather.currentCondition.iconRes),
+                        contentDescription = weather.currentCondition.label,
+                        modifier = GlanceModifier.size(todayIconSize)
                     )
-                    Spacer(modifier = GlanceModifier.height(5.dp))
-                    Image(
-                        provider = ImageProvider(R.drawable.ic_circle_dot),
-                        contentDescription = "초미세먼지",
-                        colorFilter = ColorFilter.tint(ColorProvider(weather.getPm25Color())),
-                        modifier = GlanceModifier.size(7.dp)
-                    )
+                    Spacer(modifier = GlanceModifier.width(10.dp))
+                    Column(
+                        horizontalAlignment = Alignment.Start,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${weather.currentTemp}°",
+                            style = TextStyle(
+                                color = textColorProvider,
+                                fontSize = todayTempSize.fixedSp(fontScale),
+                                fontWeight = FontWeight.Bold
+                            ),
+                            maxLines = 1
+                        )
+                        Spacer(modifier = GlanceModifier.height(2.dp))
+                        // 강수확률: [비 아이콘] + %
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Image(
+                                provider = ImageProvider(R.drawable.ic_rain_drop),
+                                contentDescription = "강수확률",
+                                colorFilter = ColorFilter.tint(ColorProvider(ComposeColor(0xFF4AA3FF))),
+                                modifier = GlanceModifier.size(11.dp)
+                            )
+                            Spacer(modifier = GlanceModifier.width(2.5.dp))
+                            Text(
+                                text = "${weather.todayPop}%",
+                                style = TextStyle(
+                                    color = subTextColorProvider,
+                                    fontSize = (todayPmSize + 1.5f).fixedSp(fontScale),
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                maxLines = 1
+                            )
+                        }
+                    }
+                    Spacer(modifier = GlanceModifier.width(10.dp))
+                    // 미세먼지(위), 초미세먼지(아래) 작은 컬러 동그라미 2열
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            provider = ImageProvider(R.drawable.ic_circle_dot),
+                            contentDescription = "미세먼지",
+                            colorFilter = ColorFilter.tint(ColorProvider(weather.getPm10Color())),
+                            modifier = GlanceModifier.size(8.dp)
+                        )
+                        Spacer(modifier = GlanceModifier.height(5.dp))
+                        Image(
+                            provider = ImageProvider(R.drawable.ic_circle_dot),
+                            contentDescription = "초미세먼지",
+                            colorFilter = ColorFilter.tint(ColorProvider(weather.getPm25Color())),
+                            modifier = GlanceModifier.size(8.dp)
+                        )
+                    }
                 }
-            }
 
-            Spacer(modifier = GlanceModifier.height(8.dp))
+                Spacer(modifier = GlanceModifier.height(5.dp))
 
             // ─── 3. 하단: 내일 & 모레 예보 (좌우 50% 균등 분할) ───
             Row(
@@ -326,6 +341,7 @@ private fun LargeWidgetLayout(
                 }
             }
         }
+    }
     }
 }
 
