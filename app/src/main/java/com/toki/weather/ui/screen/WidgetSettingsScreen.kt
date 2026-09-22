@@ -9,6 +9,7 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -60,11 +61,10 @@ import kotlinx.coroutines.withContext
 
 enum class WidgetPreset(
     val title: String,
-    val subtitle: String,
     val tag: String
 ) {
-    SAMSUNG_2X1("📱 삼성 One UI (2×1)", "기본 가로형 (5:3:3)", "2x1"),
-    NOVA_3X2("🚀 노바런처 8×8 (3×2)", "아내 폰 맞춤 세로형 (2단)", "3x2")
+    SAMSUNG_2X1("📱 삼성 One UI 4×7 (2×1)", "2x1"),
+    NOVA_3X2("🚀 노바런처 8×8 (3×2)", "3x2")
 }
 
 @Composable
@@ -180,7 +180,7 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "토끼날씨 위젯 설정",
+                        text = "위젯 설정",
                         fontSize = 19.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -324,29 +324,16 @@ fun SettingsScreen(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             ) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "위젯 미리보기",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-
-                        Text(
-                            text = selectedPreset.subtitle,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    Text(
+                        text = "위젯 미리보기",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    // 위젯 규격 탭 선택 (삼성 2×1 vs 노바 3×2)
+                    // 위젯 규격 탭 선택 (삼성 One UI 4×7 (2×1) vs 노바런처 8×8 (3×2))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -360,12 +347,22 @@ fun SettingsScreen(
                                     Text(
                                         text = preset.title,
                                         fontSize = 11.5.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                     )
                                 },
+                                border = BorderStroke(
+                                    width = if (isSelected) 1.5.dp else 1.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                                ),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                    selectedLabelColor = MaterialTheme.colorScheme.primary,
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                ),
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(34.dp)
+                                    .height(36.dp)
                             )
                         }
                     }
@@ -384,86 +381,6 @@ fun SettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(14.dp))
-
-            // 3. 위치 표기 설정 (동네 이름 직접 지정 / GPS 재측정)
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "현재 위치 표기",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-
-                        TextButton(
-                            onClick = {
-                                coroutineScope.launch {
-                                    Toast.makeText(context, "GPS 위치 재측정 중...", Toast.LENGTH_SHORT).show()
-                                    withContext(Dispatchers.IO) {
-                                        val repo = WeatherRepository(context)
-                                        repo.fetchAndSave()
-                                    }
-                                    TokiWeatherWidget().updateAll(context)
-                                    TokiWeatherWidgetLarge().updateAll(context)
-                                    Toast.makeText(context, "위치 및 날씨가 갱신되었습니다.", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_location_pin),
-                                contentDescription = "재측정",
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text("GPS 재측정", fontSize = 12.sp)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    OutlinedTextField(
-                        value = customLocationName,
-                        onValueChange = { customLocationName = it },
-                        label = { Text("동네 이름 (비워두면 GPS 자동 감지)", fontSize = 12.sp) },
-                        placeholder = { Text(cachedWeather.locationName.ifBlank { "영등포동7가" }, fontSize = 13.sp) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        trailingIcon = {
-                            if (customLocationName.isNotBlank()) {
-                                IconButton(onClick = { customLocationName = "" }) {
-                                    Icon(
-                                        painter = painterResource(android.R.drawable.ic_menu_close_clear_cancel),
-                                        contentDescription = "지우기",
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = if (customLocationName.isNotBlank()) {
-                            "현재 '${customLocationName}'(으)로 고정 표기됩니다."
-                        } else {
-                            "현재 GPS 감지 위치: '${cachedWeather.locationName}'"
-                        },
-                        fontSize = 11.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
 
             // 3. 갱신 주기 옵션
             Card(
@@ -485,13 +402,30 @@ fun SettingsScreen(
                     ) {
                         listOf(
                             15 to "15분",
-                            30 to "30분 (추천)",
+                            30 to "30분",
                             60 to "1시간"
                         ).forEach { (minutes, label) ->
+                            val isSelected = currentInterval == minutes
                             FilterChip(
-                                selected = currentInterval == minutes,
+                                selected = isSelected,
                                 onClick = { currentInterval = minutes },
-                                label = { Text(label, fontSize = 12.sp) }
+                                label = {
+                                    Text(
+                                        text = label,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                },
+                                border = BorderStroke(
+                                    width = if (isSelected) 1.5.dp else 1.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                                ),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                    selectedLabelColor = MaterialTheme.colorScheme.primary,
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             )
                         }
                     }
@@ -691,12 +625,44 @@ fun SettingsScreen(
                         FilterChip(
                             selected = isWhite,
                             onClick = { currentTextColor = "#FFFFFF" },
-                            label = { Text("화이트", fontSize = 12.sp) }
+                            label = {
+                                Text(
+                                    text = "화이트",
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isWhite) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            border = BorderStroke(
+                                width = if (isWhite) 1.5.dp else 1.dp,
+                                color = if (isWhite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                            ),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                selectedLabelColor = MaterialTheme.colorScheme.primary,
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         )
                         FilterChip(
                             selected = isDark,
                             onClick = { currentTextColor = "#1C1C1E" },
-                            label = { Text("다크", fontSize = 12.sp) }
+                            label = {
+                                Text(
+                                    text = "다크",
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isDark) FontWeight.Bold else FontWeight.Medium
+                                )
+                            },
+                            border = BorderStroke(
+                                width = if (isDark) 1.5.dp else 1.dp,
+                                color = if (isDark) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                            ),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                selectedLabelColor = MaterialTheme.colorScheme.primary,
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         )
                         FilterChip(
                             selected = isCustomText,
@@ -714,9 +680,23 @@ fun SettingsScreen(
                                             .border(1.dp, Color.LightGray, CircleShape)
                                     )
                                     Spacer(modifier = Modifier.width(5.dp))
-                                    Text("직접 선택", fontSize = 12.sp)
+                                    Text(
+                                        text = "직접 선택",
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isCustomText) FontWeight.Bold else FontWeight.Medium
+                                    )
                                 }
-                            }
+                            },
+                            border = BorderStroke(
+                                width = if (isCustomText) 1.5.dp else 1.dp,
+                                color = if (isCustomText) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                            ),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                selectedLabelColor = MaterialTheme.colorScheme.primary,
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         )
                     }
                 }
