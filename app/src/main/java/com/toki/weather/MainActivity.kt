@@ -7,11 +7,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -26,9 +26,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.glance.appwidget.updateAll
 import com.toki.weather.data.cache.WeatherDataStore
 import com.toki.weather.data.model.CachedWeather
@@ -98,37 +101,70 @@ fun MainScreen(
                     selected = selectedTab == 0,
                     onClick = { onTabSelected(0) },
                     icon = {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_tab_weather),
+                        Image(
+                            painter = painterResource(
+                                if (selectedTab == 0) R.drawable.ic_tab_weather_selected
+                                else R.drawable.ic_tab_weather
+                            ),
                             contentDescription = "날씨",
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier
+                                .size(30.dp)
+                                .alpha(if (selectedTab == 0) 1.0f else 0.6f)
                         )
                     },
-                    label = { Text("날씨") }
+                    label = {
+                        Text(
+                            text = "날씨",
+                            fontSize = 12.sp,
+                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 1,
                     onClick = { onTabSelected(1) },
                     icon = {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_tab_radar),
+                        Image(
+                            painter = painterResource(
+                                if (selectedTab == 1) R.drawable.ic_tab_radar_selected
+                                else R.drawable.ic_tab_radar
+                            ),
                             contentDescription = "초단기",
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier
+                                .size(30.dp)
+                                .alpha(if (selectedTab == 1) 1.0f else 0.6f)
                         )
                     },
-                    label = { Text("초단기") }
+                    label = {
+                        Text(
+                            text = "초단기",
+                            fontSize = 12.sp,
+                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 2,
                     onClick = { onTabSelected(2) },
                     icon = {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_tab_settings),
+                        Image(
+                            painter = painterResource(
+                                if (selectedTab == 2) R.drawable.ic_tab_settings_selected
+                                else R.drawable.ic_tab_settings
+                            ),
                             contentDescription = "설정",
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier
+                                .size(30.dp)
+                                .alpha(if (selectedTab == 2) 1.0f else 0.6f)
                         )
                     },
-                    label = { Text("설정") }
+                    label = {
+                        Text(
+                            text = "설정",
+                            fontSize = 12.sp,
+                            fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
                 )
             }
         }
@@ -166,7 +202,7 @@ fun MainScreen(
                 )
                 2 -> SettingsScreen(
                     initialWidgetType = initialWidgetType,
-                    onSaved = { onTabSelected(0) }
+                    onSaved = { (context as? android.app.Activity)?.finish() }
                 )
             }
         }

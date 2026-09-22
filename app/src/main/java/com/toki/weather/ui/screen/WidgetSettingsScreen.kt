@@ -209,20 +209,17 @@ fun SettingsScreen(
                                 TokiWeatherWidget().updateAll(context)
                                 TokiWeatherWidgetLarge().updateAll(context)
 
-                                if (onSaved != null) {
-                                    onSaved()
-                                } else {
-                                    (context as? android.app.Activity)?.finish()
-                                }
+                                (context as? android.app.Activity)?.finish()
                             }
                         },
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                     ) {
-                        Text("저장", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text("저장 및 새로고침", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
                 }
             }
-        }
+        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -318,6 +315,58 @@ fun SettingsScreen(
                 }
             }
 
+            // 1. 갱신 주기 옵션
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text(text = "날씨 및 GPS 갱신 주기", fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "기상청 데이터 주기 및 배터리 절약을 고려하여 30분을 권장합니다.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(top = 2.dp, bottom = 8.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(
+                            15 to "15분",
+                            30 to "30분",
+                            60 to "1시간"
+                        ).forEach { (minutes, label) ->
+                            val isSelected = currentInterval == minutes
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { currentInterval = minutes },
+                                label = {
+                                    Text(
+                                        text = label,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                },
+                                border = BorderStroke(
+                                    width = if (isSelected) 1.5.dp else 1.dp,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                                ),
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                    selectedLabelColor = MaterialTheme.colorScheme.primary,
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
             // 2. 실시간 위젯 미리보기
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -381,58 +430,6 @@ fun SettingsScreen(
             }
 
             Spacer(modifier = Modifier.height(14.dp))
-
-            // 3. 갱신 주기 옵션
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Text(text = "날씨 및 GPS 갱신 주기", fontWeight = FontWeight.Bold)
-                    Text(
-                        text = "기상청 데이터 주기 및 배터리 절약을 고려하여 30분을 권장합니다.",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.outline,
-                        modifier = Modifier.padding(top = 2.dp, bottom = 8.dp)
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf(
-                            15 to "15분",
-                            30 to "30분",
-                            60 to "1시간"
-                        ).forEach { (minutes, label) ->
-                            val isSelected = currentInterval == minutes
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = { currentInterval = minutes },
-                                label = {
-                                    Text(
-                                        text = label,
-                                        fontSize = 12.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                    )
-                                },
-                                border = BorderStroke(
-                                    width = if (isSelected) 1.5.dp else 1.dp,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
-                                ),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                    selectedLabelColor = MaterialTheme.colorScheme.primary,
-                                    containerColor = MaterialTheme.colorScheme.surface,
-                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
 
             // 4. 투명도 슬라이더
             Card(
@@ -701,11 +698,6 @@ fun SettingsScreen(
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Spacer(modifier = Modifier.height(24.dp))
-
             Spacer(modifier = Modifier.height(16.dp))
         }
 

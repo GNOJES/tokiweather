@@ -1,0 +1,84 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="32dp"
+    android:height="32dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- Toki peeking on the left -->
+    <group
+        android:pivotX="52"
+        android:pivotY="56"
+        android:scaleX="0.37"
+        android:scaleY="0.37"
+        android:translateX="-34"
+        android:translateY="-29">
+
+        <!-- Toki Ears -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:strokeColor="#7E57C2"
+            android:strokeWidth="1.5"
+            android:pathData="M38,55 C34,40 36,25 43,24 C50,23 50,38 46,55 Z" />
+        <path
+            android:fillColor="#FF80AB"
+            android:pathData="M40,51 C37,40 38,30 43,29 C47,28 47,38 44,51 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:strokeColor="#7E57C2"
+            android:strokeWidth="1.5"
+            android:pathData="M54,54 C54,38 60,25 67,27 C74,29 70,42 63,55 Z" />
+        <path
+            android:fillColor="#FF80AB"
+            android:pathData="M56,50 C57,40 61,31 66,32 C70,33 68,41 62,51 Z" />
+
+        <!-- Toki Head -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:strokeColor="#7E57C2"
+            android:strokeWidth="1.5"
+            android:pathData="M52,50 C33,50 28,63 28,73 C28,84 38,89 52,89 C66,89 76,84 76,73 C76,63 71,50 52,50 Z" />
+
+        <!-- Cheeks -->
+        <path
+            android:fillColor="#FF80AB"
+            android:pathData="M36,75m-4.5,0a4.5,3.5 0,1 1,9 0a4.5,3.5 0,1 1,-9 0" />
+        <path
+            android:fillColor="#FF80AB"
+            android:pathData="M68,75m-4.5,0a4.5,3.5 0,1 1,9 0a4.5,3.5 0,1 1,-9 0" />
+
+        <!-- Eyes -->
+        <path
+            android:fillColor="#212121"
+            android:pathData="M42,67m-3,0a3,3.5 0,1 1,6 0a3,3.5 0,1 1,-6 0" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M43,65.5m-1,0a1,1 0,1 1,2 0a1,1 0,1 1,-2 0" />
+        <path
+            android:fillColor="#212121"
+            android:pathData="M62,67m-3,0a3,3.5 0,1 1,6 0a3,3.5 0,1 1,-6 0" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M63,65.5m-1,0a1,1 0,1 1,2 0a1,1 0,1 1,-2 0" />
+
+        <!-- Nose & Mouth -->
+        <path
+            android:fillColor="#FF4081"
+            android:pathData="M52,71 L50,69 L54,69 Z" />
+        <path
+            android:strokeColor="#757575"
+            android:strokeWidth="1.2"
+            android:strokeLineCap="round"
+            android:pathData="M52,71 L52,73 M52,73 C50,75 48,74 47,73 M52,73 C54,75 56,74 57,73" />
+
+    </group>
+
+    <!-- Cute Gear in foreground on the right -->
+    <path
+        android:fillColor="#BA68C8"
+        android:pathData="M32,18 C31.1,18 30.4,18.7 30.4,19.6 L29.7,19.8 C29,19.2 28,19.2 27.4,19.8 L26.2,21 C25.6,21.6 25.6,22.6 26.2,23.2 L26.4,24 C25.6,24.6 25.6,25.8 26.4,26.4 L26.2,27.1 C25.6,27.7 25.6,28.8 26.2,29.4 L27.4,30.6 C28,31.2 29.1,31.2 29.7,30.6 L30.4,30.8 C30.4,31.7 31.1,32.4 32,32.4 C32.9,32.4 33.6,31.7 33.6,30.8 L34.3,30.6 C35,31.2 36,31.2 36.6,30.6 L37.8,29.4 C38.4,28.8 38.4,27.7 37.8,27.1 L37.6,26.4 C38.4,25.8 38.4,24.6 37.6,24 L37.8,23.2 C38.4,22.6 38.4,21.6 37.8,21 L36.6,19.8 C36,19.2 35,19.2 34.3,19.8 L33.6,19.6 C33.6,18.7 32.9,18 32,18 Z" />
+    <path
+        android:fillColor="#E1BEE7"
+        android:pathData="M32,19.5 C29.5,19.5 27.5,21.5 27.5,24 C27.5,26.5 29.5,28.5 32,28.5 C34.5,28.5 36.5,26.5 36.5,24 C36.5,21.5 34.5,19.5 32,19.5 Z" />
+    <path
+        android:fillColor="#6A1B9A"
+        android:pathData="M32,22m-2.2,0a2.2,2.2 0,1 1,4.4 0a2.2,2.2 0,1 1,-4.4 0" />
+</vector>
