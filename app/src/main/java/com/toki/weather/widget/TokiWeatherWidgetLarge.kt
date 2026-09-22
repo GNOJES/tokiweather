@@ -111,7 +111,7 @@ private fun LargeWidgetLayout(
     val contentWidth = (currentWidth - (horizPadding * 2)).coerceAtLeast(100.dp)
     val forecastItemWidth = (contentWidth - forecastColSpacer) / 2f
 
-    val todayIconSize = if (isNarrow) 48.dp else 54.dp
+    val todayIconSize = if (isNarrow) 51.dp else 57.dp
     val todayTempSize = if (isNarrow) 25 else 27
     val todayPmSize = if (isNarrow) 9.5f else 10f
     val locNameSize = if (isNarrow) 10.5f else 11f
@@ -153,9 +153,9 @@ private fun LargeWidgetLayout(
                     modifier = GlanceModifier.fillMaxWidth()
                 )
             } else {
-                // ─── 1. 상단: 좌측 현재 날짜(9/22(화)) + 우측 현재 위치 (최상단 밀착) ───
+                // ─── 1. 상단: 좌측 현재 날짜(9/22(화)) + 우측 현재 위치 (모서리에서 중앙 쪽으로 살짝 이동) ───
                 Row(
-                    modifier = GlanceModifier.fillMaxWidth(),
+                    modifier = GlanceModifier.fillMaxWidth().padding(horizontal = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -202,6 +202,7 @@ private fun LargeWidgetLayout(
                     )
                     Spacer(modifier = GlanceModifier.width(10.dp))
                     Column(
+                        modifier = GlanceModifier.padding(top = 2.dp),
                         horizontalAlignment = Alignment.Start,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -214,8 +215,7 @@ private fun LargeWidgetLayout(
                             ),
                             maxLines = 1
                         )
-                        Spacer(modifier = GlanceModifier.height(2.dp))
-                        // 강수확률: [비 아이콘] + %
+                        // 강수확률: [비 아이콘] + % (기온과 살짝 밀착)
                         Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {

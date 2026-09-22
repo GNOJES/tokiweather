@@ -1003,9 +1003,9 @@ fun WidgetPreviewBox(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // 1. 상단: 좌측 현재 날짜 + 우측 현재 위치 (최상단 밀착)
+                        // 1. 상단: 좌측 현재 날짜 + 우측 현재 위치 (모서리에서 중앙 쪽으로 살짝 이동)
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
@@ -1046,10 +1046,11 @@ fun WidgetPreviewBox(
                                 Image(
                                     painter = painterResource(currentCondition.iconRes),
                                     contentDescription = currentCondition.label,
-                                    modifier = Modifier.size(54.dp)
+                                    modifier = Modifier.size(57.dp)
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column(
+                                    modifier = Modifier.padding(top = 2.dp),
                                     horizontalAlignment = Alignment.Start,
                                     verticalArrangement = Arrangement.Center
                                 ) {
@@ -1060,7 +1061,6 @@ fun WidgetPreviewBox(
                                         color = parsedText,
                                         maxLines = 1
                                     )
-                                    Spacer(modifier = Modifier.height(2.dp))
                                     val todayPopVal = if (weather.lastUpdated > 0) weather.todayPop else 10
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(
