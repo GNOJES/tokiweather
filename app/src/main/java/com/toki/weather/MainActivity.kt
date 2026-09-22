@@ -10,13 +10,16 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -96,10 +99,19 @@ fun MainScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            NavigationBar {
+            NavigationBar(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp
+            ) {
+                val itemColors = NavigationBarItemDefaults.colors(
+                    indicatorColor = Color.Transparent
+                )
+
                 NavigationBarItem(
                     selected = selectedTab == 0,
                     onClick = { onTabSelected(0) },
+                    colors = itemColors,
                     icon = {
                         Image(
                             painter = painterResource(
@@ -108,21 +120,15 @@ fun MainScreen(
                             ),
                             contentDescription = "날씨",
                             modifier = Modifier
-                                .size(30.dp)
-                                .alpha(if (selectedTab == 0) 1.0f else 0.6f)
-                        )
-                    },
-                    label = {
-                        Text(
-                            text = "날씨",
-                            fontSize = 12.sp,
-                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal
+                                .size(46.dp)
+                                .alpha(if (selectedTab == 0) 1.0f else 0.55f)
                         )
                     }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 1,
                     onClick = { onTabSelected(1) },
+                    colors = itemColors,
                     icon = {
                         Image(
                             painter = painterResource(
@@ -131,21 +137,15 @@ fun MainScreen(
                             ),
                             contentDescription = "초단기",
                             modifier = Modifier
-                                .size(30.dp)
-                                .alpha(if (selectedTab == 1) 1.0f else 0.6f)
-                        )
-                    },
-                    label = {
-                        Text(
-                            text = "초단기",
-                            fontSize = 12.sp,
-                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal
+                                .size(46.dp)
+                                .alpha(if (selectedTab == 1) 1.0f else 0.55f)
                         )
                     }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 2,
                     onClick = { onTabSelected(2) },
+                    colors = itemColors,
                     icon = {
                         Image(
                             painter = painterResource(
@@ -154,15 +154,8 @@ fun MainScreen(
                             ),
                             contentDescription = "설정",
                             modifier = Modifier
-                                .size(30.dp)
-                                .alpha(if (selectedTab == 2) 1.0f else 0.6f)
-                        )
-                    },
-                    label = {
-                        Text(
-                            text = "설정",
-                            fontSize = 12.sp,
-                            fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal
+                                .size(46.dp)
+                                .alpha(if (selectedTab == 2) 1.0f else 0.55f)
                         )
                     }
                 )
