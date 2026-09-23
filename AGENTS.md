@@ -86,7 +86,7 @@
   ```bash
   ./gradlew testDebugUnitTest
   ```
-  (현재 24개 테스트 전원 통과 상태 유지 필수)
+  (현재 WeatherCondition 8종 × 3가지 필수 속성 검증 = 총 24개 단언/검증 항목 통과 상태 유지 필수)
 - **빌드 및 패키징**:
   ```bash
   ./gradlew assembleDebug
