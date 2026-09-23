@@ -129,7 +129,7 @@ fun MainScreen(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(22.dp))
                                     .background(
-                                        if (isSelected) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.75f)
+                                        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
                                         else Color.Transparent
                                     )
                                     .padding(horizontal = 14.dp, vertical = 4.dp),
@@ -138,9 +138,7 @@ fun MainScreen(
                                 Image(
                                     painter = painterResource(if (isSelected) selectedIcon else unselectedIcon),
                                     contentDescription = label,
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .alpha(if (isSelected) 1.0f else 0.55f)
+                                    modifier = Modifier.size(48.dp)
                                 )
                             }
                         }
