@@ -8,17 +8,21 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -108,57 +112,40 @@ fun MainScreen(
                     indicatorColor = Color.Transparent
                 )
 
-                NavigationBarItem(
-                    selected = selectedTab == 0,
-                    onClick = { onTabSelected(0) },
-                    colors = itemColors,
-                    icon = {
-                        Image(
-                            painter = painterResource(
-                                if (selectedTab == 0) R.drawable.ic_tab_weather_selected
-                                else R.drawable.ic_tab_weather
-                            ),
-                            contentDescription = "날씨",
-                            modifier = Modifier
-                                .size(46.dp)
-                                .alpha(if (selectedTab == 0) 1.0f else 0.55f)
-                        )
-                    }
+                val tabs = listOf(
+                    Triple(R.drawable.ic_tab_weather, R.drawable.ic_tab_weather_selected, "날씨"),
+                    Triple(R.drawable.ic_tab_radar, R.drawable.ic_tab_radar_selected, "초단기"),
+                    Triple(R.drawable.ic_tab_settings, R.drawable.ic_tab_settings_selected, "설정")
                 )
-                NavigationBarItem(
-                    selected = selectedTab == 1,
-                    onClick = { onTabSelected(1) },
-                    colors = itemColors,
-                    icon = {
-                        Image(
-                            painter = painterResource(
-                                if (selectedTab == 1) R.drawable.ic_tab_radar_selected
-                                else R.drawable.ic_tab_radar
-                            ),
-                            contentDescription = "초단기",
-                            modifier = Modifier
-                                .size(46.dp)
-                                .alpha(if (selectedTab == 1) 1.0f else 0.55f)
-                        )
-                    }
-                )
-                NavigationBarItem(
-                    selected = selectedTab == 2,
-                    onClick = { onTabSelected(2) },
-                    colors = itemColors,
-                    icon = {
-                        Image(
-                            painter = painterResource(
-                                if (selectedTab == 2) R.drawable.ic_tab_settings_selected
-                                else R.drawable.ic_tab_settings
-                            ),
-                            contentDescription = "설정",
-                            modifier = Modifier
-                                .size(46.dp)
-                                .alpha(if (selectedTab == 2) 1.0f else 0.55f)
-                        )
-                    }
-                )
+
+                tabs.forEachIndexed { index, (unselectedIcon, selectedIcon, label) ->
+                    val isSelected = selectedTab == index
+                    NavigationBarItem(
+                        selected = isSelected,
+                        onClick = { onTabSelected(index) },
+                        colors = itemColors,
+                        icon = {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(22.dp))
+                                    .background(
+                                        if (isSelected) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.75f)
+                                        else Color.Transparent
+                                    )
+                                    .padding(horizontal = 14.dp, vertical = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    painter = painterResource(if (isSelected) selectedIcon else unselectedIcon),
+                                    contentDescription = label,
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .alpha(if (isSelected) 1.0f else 0.55f)
+                                )
+                            }
+                        }
+                    )
+                }
             }
         }
     ) { innerPadding ->
