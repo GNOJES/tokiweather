@@ -1,5 +1,7 @@
 package com.toki.weather.widget
 
+import com.toki.weather.data.model.formatTemperatureRange
+
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color as ComposeColor
@@ -287,7 +289,7 @@ private fun LargeWidgetLayout(
                     )
                     Spacer(modifier = GlanceModifier.height(1.dp))
                     Text(
-                        text = "${weather.tomorrowMin}° / ${weather.tomorrowMax}°",
+                        text = formatTemperatureRange(weather.tomorrowMin, weather.tomorrowMax),
                         style = TextStyle(
                             color = textColorProvider,
                             fontSize = forecastTempSize.fixedSp(fontScale),
@@ -324,7 +326,7 @@ private fun LargeWidgetLayout(
                     )
                     Spacer(modifier = GlanceModifier.height(1.dp))
                     Text(
-                        text = "${weather.dayAfterMin}° / ${weather.dayAfterMax}°",
+                        text = formatTemperatureRange(weather.dayAfterMin, weather.dayAfterMax),
                         style = TextStyle(
                             color = textColorProvider,
                             fontSize = forecastTempSize.fixedSp(fontScale),

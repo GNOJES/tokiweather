@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.appwidget.updateAll
+import androidx.lifecycle.lifecycleScope
 import com.toki.weather.data.cache.WeatherDataStore
 import com.toki.weather.data.model.CachedWeather
 import com.toki.weather.data.repository.WeatherRepository
@@ -48,6 +49,9 @@ import com.toki.weather.ui.screen.SettingsScreen
 import com.toki.weather.ui.screen.WeatherPlaceholderScreen
 import com.toki.weather.widget.TokiWeatherWidget
 import com.toki.weather.widget.TokiWeatherWidgetLarge
+import com.toki.weather.worker.refreshAndUpdate
+import com.toki.weather.worker.WeatherWorkScheduler
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -62,6 +66,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         initialWidgetType = intent?.getStringExtra("widget_type")
         selectedTab = 0
+        lifecycleScope.launch(Dispatchers.IO) {
+            WeatherWorkScheduler.ensureScheduled(applicationContext)
+        }
 
         setContent {
             MaterialTheme {
@@ -161,14 +168,19 @@ fun MainScreen(
                             isRefreshing = true
                             try {
                                 withContext(Dispatchers.IO) {
-                                    val repo = WeatherRepository(context)
-                                    repo.fetchAndSave()
+                                    refreshAndUpdate(
+                                        fetch = { WeatherRepository(context).fetchAndSave() },
+                                        updateWidgets = {
+                                            TokiWeatherWidget().updateAll(context)
+                                            TokiWeatherWidgetLarge().updateAll(context)
+                                        }
+                                    )
                                 }
-                                TokiWeatherWidget().updateAll(context)
-                                TokiWeatherWidgetLarge().updateAll(context)
                                 Toast.makeText(context, "날씨 정보가 갱신되었습니다.", Toast.LENGTH_SHORT).show()
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "날씨 갱신 실패: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (_: Exception) {
+                                Toast.makeText(context, "날씨 갱신에 실패했습니다. 잠시 후 다시 시도해 주세요.", Toast.LENGTH_SHORT).show()
                             } finally {
                                 isRefreshing = false
                             }

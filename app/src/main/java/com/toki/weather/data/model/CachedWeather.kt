@@ -12,12 +12,12 @@ data class CachedWeather(
     val todayPop: Int = 0,         // 오늘 남은 시간대 최대 강수확률 (%)
     val pm10: Int = -1,            // 미세먼지 수치 (㎍/㎥, -1은 미수신)
     val pm25: Int = -1,            // 초미세먼지 수치 (㎍/㎥, -1은 미수신)
-    val tomorrowMin: Int,
-    val tomorrowMax: Int,
+    val tomorrowMin: Int?,
+    val tomorrowMax: Int?,
     val tomorrowCondition: WeatherCondition,
     val tomorrowPop: Int = 0,      // 내일 최대 강수확률 (%)
-    val dayAfterMin: Int,
-    val dayAfterMax: Int,
+    val dayAfterMin: Int?,
+    val dayAfterMax: Int?,
     val dayAfterCondition: WeatherCondition,
     val dayAfterPop: Int = 0,      // 모레 최대 강수확률 (%)
     val lastUpdated: Long = System.currentTimeMillis()
@@ -58,12 +58,12 @@ data class CachedWeather(
             todayPop = 0,
             pm10 = -1,
             pm25 = -1,
-            tomorrowMin = 0,
-            tomorrowMax = 0,
+            tomorrowMin = null,
+            tomorrowMax = null,
             tomorrowCondition = WeatherCondition.UNKNOWN,
             tomorrowPop = 0,
-            dayAfterMin = 0,
-            dayAfterMax = 0,
+            dayAfterMin = null,
+            dayAfterMax = null,
             dayAfterCondition = WeatherCondition.UNKNOWN,
             dayAfterPop = 0,
             lastUpdated = 0L

@@ -31,8 +31,9 @@ class WeatherDataStore(private val context: Context) {
         private val KEY_CURRENT_TEMP = intPreferencesKey("current_temp")
         private val KEY_CURRENT_CONDITION = stringPreferencesKey("current_condition")
         private val KEY_TODAY_POP = intPreferencesKey("today_pop")
-        private val KEY_PM10 = intPreferencesKey("pm10")
-        private val KEY_PM25 = intPreferencesKey("pm25")
+        // 출처 전환 이전 Open-Meteo 캐시는 읽지 않는다.
+        private val KEY_PM10 = intPreferencesKey("airkorea_pm10")
+        private val KEY_PM25 = intPreferencesKey("airkorea_pm25")
         private val KEY_TOMORROW_MIN = intPreferencesKey("tomorrow_min")
         private val KEY_TOMORROW_MAX = intPreferencesKey("tomorrow_max")
         private val KEY_TOMORROW_CONDITION = stringPreferencesKey("tomorrow_condition")
@@ -69,14 +70,14 @@ class WeatherDataStore(private val context: Context) {
             todayPop = prefs[KEY_TODAY_POP] ?: 0,
             pm10 = prefs[KEY_PM10] ?: -1,
             pm25 = prefs[KEY_PM25] ?: -1,
-            tomorrowMin = prefs[KEY_TOMORROW_MIN] ?: 0,
-            tomorrowMax = prefs[KEY_TOMORROW_MAX] ?: 0,
+            tomorrowMin = prefs[KEY_TOMORROW_MIN],
+            tomorrowMax = prefs[KEY_TOMORROW_MAX],
             tomorrowCondition = prefs[KEY_TOMORROW_CONDITION]?.let {
                 try { WeatherCondition.valueOf(it) } catch (_: Exception) { WeatherCondition.UNKNOWN }
             } ?: WeatherCondition.UNKNOWN,
             tomorrowPop = prefs[KEY_TOMORROW_POP] ?: 0,
-            dayAfterMin = prefs[KEY_DAY_AFTER_MIN] ?: 0,
-            dayAfterMax = prefs[KEY_DAY_AFTER_MAX] ?: 0,
+            dayAfterMin = prefs[KEY_DAY_AFTER_MIN],
+            dayAfterMax = prefs[KEY_DAY_AFTER_MAX],
             dayAfterCondition = prefs[KEY_DAY_AFTER_CONDITION]?.let {
                 try { WeatherCondition.valueOf(it) } catch (_: Exception) { WeatherCondition.UNKNOWN }
             } ?: WeatherCondition.UNKNOWN,
@@ -115,12 +116,12 @@ class WeatherDataStore(private val context: Context) {
             prefs[KEY_TODAY_POP] = weather.todayPop
             prefs[KEY_PM10] = weather.pm10
             prefs[KEY_PM25] = weather.pm25
-            prefs[KEY_TOMORROW_MIN] = weather.tomorrowMin
-            prefs[KEY_TOMORROW_MAX] = weather.tomorrowMax
+            weather.tomorrowMin?.let { prefs[KEY_TOMORROW_MIN] = it } ?: prefs.remove(KEY_TOMORROW_MIN)
+            weather.tomorrowMax?.let { prefs[KEY_TOMORROW_MAX] = it } ?: prefs.remove(KEY_TOMORROW_MAX)
             prefs[KEY_TOMORROW_CONDITION] = weather.tomorrowCondition.name
             prefs[KEY_TOMORROW_POP] = weather.tomorrowPop
-            prefs[KEY_DAY_AFTER_MIN] = weather.dayAfterMin
-            prefs[KEY_DAY_AFTER_MAX] = weather.dayAfterMax
+            weather.dayAfterMin?.let { prefs[KEY_DAY_AFTER_MIN] = it } ?: prefs.remove(KEY_DAY_AFTER_MIN)
+            weather.dayAfterMax?.let { prefs[KEY_DAY_AFTER_MAX] = it } ?: prefs.remove(KEY_DAY_AFTER_MAX)
             prefs[KEY_DAY_AFTER_CONDITION] = weather.dayAfterCondition.name
             prefs[KEY_DAY_AFTER_POP] = weather.dayAfterPop
             prefs[KEY_LAST_UPDATED] = weather.lastUpdated

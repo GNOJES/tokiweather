@@ -4,12 +4,22 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 
 interface AirQualityApiService {
+    @GET("MsrstnInfoInqireSvc/getMsrstnList")
+    suspend fun getStations(
+        @Query("serviceKey") serviceKey: String,
+        @Query("pageNo") page: Int = 1,
+        @Query("numOfRows") pageSize: Int = 1000,
+        @Query("returnType") returnType: String = "json"
+    ): AirKoreaResponse<AirQualityStation>
 
-    @GET("v1/air-quality")
+    @GET("ArpltnInforInqireSvc/getMsrstnAcctoRltmMesureDnsty")
     suspend fun getAirQuality(
-        @Query("latitude") latitude: Double,
-        @Query("longitude") longitude: Double,
-        @Query("current") current: String = "pm10,pm2_5",
-        @Query("timezone") timezone: String = "Asia/Seoul"
-    ): AirQualityResponse
+        @Query("serviceKey") serviceKey: String,
+        @Query("stationName") stationName: String,
+        @Query("dataTerm") dataTerm: String = "DAILY",
+        @Query("ver") version: String = "1.3",
+        @Query("numOfRows") pageSize: Int = 1,
+        @Query("pageNo") page: Int = 1,
+        @Query("returnType") returnType: String = "json"
+    ): AirKoreaResponse<AirQualityMeasurement>
 }

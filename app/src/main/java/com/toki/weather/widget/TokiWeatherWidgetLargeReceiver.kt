@@ -1,6 +1,7 @@
 package com.toki.weather.widget
 
 import android.content.Context
+import android.appwidget.AppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import com.toki.weather.worker.WeatherWorkScheduler
@@ -16,12 +17,16 @@ class TokiWeatherWidgetLargeReceiver : GlanceAppWidgetReceiver() {
 
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
-        WeatherWorkScheduler.schedule(context)
-        WeatherWorkScheduler.runOnce(context)
+        WeatherWorkScheduler.onWidgetEnabled(context, goAsync())
     }
 
     override fun onDisabled(context: Context) {
         super.onDisabled(context)
-        WeatherWorkScheduler.cancel(context)
+        WeatherWorkScheduler.onWidgetDisabled(context)
+    }
+
+    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
+        super.onUpdate(context, appWidgetManager, appWidgetIds)
+        WeatherWorkScheduler.onWidgetUpdated(context, goAsync())
     }
 }

@@ -1,5 +1,7 @@
 package com.toki.weather.ui.screen
 
+import com.toki.weather.data.model.formatTemperatureRange
+
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
@@ -108,8 +110,8 @@ fun WeatherPlaceholderScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // ─── 1. 현재 날씨 메인 카드 ───
             Card(
@@ -122,7 +124,7 @@ fun WeatherPlaceholderScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Image(
@@ -167,7 +169,7 @@ fun WeatherPlaceholderScreen(
                 }
             }
 
-            // ─── 2. 대기질 (미세먼지 / 초미세먼지) 카드 ───
+            // ─── 2. 단기 예보 요약 & 상세 예보 준비 안내 카드 ───
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -175,48 +177,14 @@ fun WeatherPlaceholderScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                 )
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "실시간 대기질",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        AirQualityItem(
-                            title = "미세먼지 (PM10)",
-                            value = if (weather.pm10 >= 0) "${weather.pm10} ㎍/㎥" else "측정 중",
-                            color = weather.getPm10Color()
-                        )
-                        AirQualityItem(
-                            title = "초미세먼지 (PM2.5)",
-                            value = if (weather.pm25 >= 0) "${weather.pm25} ㎍/㎥" else "측정 중",
-                            color = weather.getPm25Color()
-                        )
-                    }
-                }
-            }
-
-            // ─── 3. 단기 예보 요약 & 상세 예보 준비 안내 카드 ───
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(14.dp)) {
                     Text(
                         text = "예보 요약",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
@@ -225,15 +193,49 @@ fun WeatherPlaceholderScreen(
                             dayLabel = "내일",
                             condition = weather.tomorrowCondition.label,
                             iconRes = weather.tomorrowCondition.iconRes,
-                            tempRange = "${weather.tomorrowMin}° / ${weather.tomorrowMax}°",
+                            tempRange = formatTemperatureRange(weather.tomorrowMin, weather.tomorrowMax),
                             pop = weather.tomorrowPop
                         )
                         ForecastSimpleItem(
                             dayLabel = "모레",
                             condition = weather.dayAfterCondition.label,
                             iconRes = weather.dayAfterCondition.iconRes,
-                            tempRange = "${weather.dayAfterMin}° / ${weather.dayAfterMax}°",
+                            tempRange = formatTemperatureRange(weather.dayAfterMin, weather.dayAfterMax),
                             pop = weather.dayAfterPop
+                        )
+                    }
+                }
+            }
+
+            // ─── 3. 대기질 (미세먼지 / 초미세먼지) 카드 ───
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Text(
+                        text = "실시간 대기질 · 에어코리아",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        AirQualityItem(
+                            title = "미세먼지 (PM10)",
+                            value = if (weather.pm10 >= 0) "${weather.pm10} ㎍/㎥" else "자료 없음",
+                            color = weather.getPm10Color()
+                        )
+                        AirQualityItem(
+                            title = "초미세먼지 (PM2.5)",
+                            value = if (weather.pm25 >= 0) "${weather.pm25} ㎍/㎥" else "자료 없음",
+                            color = weather.getPm25Color()
                         )
                     }
                 }
@@ -256,7 +258,7 @@ fun WeatherPlaceholderScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -294,7 +296,6 @@ fun WeatherPlaceholderScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -307,7 +308,7 @@ private fun AirQualityItem(
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(text = title, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
@@ -336,13 +337,13 @@ private fun ForecastSimpleItem(
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(text = dayLabel, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         Image(
             painter = painterResource(iconRes),
             contentDescription = condition,
-            modifier = Modifier.size(36.dp)
+            modifier = Modifier.size(34.dp)
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(3.dp))
         Text(text = tempRange, fontSize = 13.sp, fontWeight = FontWeight.Bold)
         Text(text = "💧 $pop%", fontSize = 11.sp, color = Color(0xFF4AA3FF))
     }

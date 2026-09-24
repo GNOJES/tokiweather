@@ -49,6 +49,14 @@
                 android:resource="@xml/toki_weather_widget_large_info" />
         </receiver>
 
+        <receiver
+            android:name=".worker.WidgetScheduleRestoreReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

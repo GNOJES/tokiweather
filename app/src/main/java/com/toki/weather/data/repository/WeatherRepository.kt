@@ -8,9 +8,13 @@ import com.toki.weather.data.model.CachedWeather
 import com.toki.weather.data.model.WeatherCondition
 import com.toki.weather.data.remote.KmaResponse
 import com.toki.weather.data.remote.RetrofitClient
+import com.toki.weather.data.remote.forecastTemperature
+import com.toki.weather.data.remote.requireCurrentTemperature
+import com.toki.weather.data.remote.requireKmaItems
 import com.toki.weather.util.DateTimeUtils
 import com.toki.weather.util.LocationHelper
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.firstOrNull
 
 /**
@@ -20,7 +24,7 @@ import kotlinx.coroutines.flow.firstOrNull
 class WeatherRepository(private val context: Context) {
 
     private val api = RetrofitClient.kmaApiService
-    private val airQualityApi = RetrofitClient.airQualityApiService
+    private val airQualityRepository = RetrofitClient.airQualityRepository
     private val dataStore = WeatherDataStore(context)
     private val serviceKey: String
         get() {
@@ -49,6 +53,8 @@ class WeatherRepository(private val context: Context) {
             val locInfo = LocationHelper.getCurrentLocationInfo(context)
             val customName = try {
                 dataStore.customLocationNameFlow.firstOrNull()?.trim() ?: ""
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) { "" }
             val finalLocationName = if (customName.isNotBlank()) customName else locInfo.locationName
             Log.d(TAG, "Current location: $finalLocationName (GPS: ${locInfo.locationName}, custom: $customName, nx=${locInfo.nx}, ny=${locInfo.ny})")
@@ -73,22 +79,26 @@ class WeatherRepository(private val context: Context) {
                 ny = locInfo.ny
             )
 
-            // 3. 실시간 대기질 (미세먼지 PM10, 초미세먼지 PM2.5) 조회
-            val (pm10, pm25) = fetchAirQuality(
-                lat = locInfo.latitude ?: 37.5665,
-                lon = locInfo.longitude ?: 126.9780
+            // 3. 필수 날씨 응답을 먼저 검증한다. 오류 응답은 캐시에 쓰지 않는다.
+            val forecast = parseWeather(finalLocationName, ncstResponse, fcstResponse)
+
+            // 4. 실시간 대기질 (미세먼지 PM10, 초미세먼지 PM2.5) 조회
+            val (pm10, pm25) = airQualityRepository.fetch(
+                latitude = locInfo.latitude ?: 37.5665,
+                longitude = locInfo.longitude ?: 126.9780
             )
 
-            // 4. 데이터 가공
-            val weather = parseWeather(finalLocationName, ncstResponse, fcstResponse, pm10, pm25)
+            val weather = forecast.copy(pm10 = pm10, pm25 = pm25)
 
             // 5. 캐시 저장
             dataStore.save(weather)
 
             Log.d(TAG, "Weather updated: $weather")
             Result.success(weather)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to fetch weather", e)
+            Log.e(TAG, "Failed to fetch weather: ${e.javaClass.simpleName}")
             Result.failure(e)
         }
     }
@@ -99,17 +109,13 @@ class WeatherRepository(private val context: Context) {
     private fun parseWeather(
         locationName: String,
         ncstResponse: KmaResponse,
-        fcstResponse: KmaResponse,
-        pm10: Int = -1,
-        pm25: Int = -1
+        fcstResponse: KmaResponse
     ): CachedWeather {
-        val ncstItems = ncstResponse.response.body?.items?.item ?: emptyList()
-        val fcstItems = fcstResponse.response.body?.items?.item ?: emptyList()
+        val ncstItems = requireKmaItems(ncstResponse)
+        val fcstItems = requireKmaItems(fcstResponse)
 
         // --- 현재 기온 ---
-        val currentTemp = ncstItems
-            .firstOrNull { it.category == "T1H" }
-            ?.value?.toDoubleOrNull()?.toInt() ?: 0
+        val currentTemp = requireCurrentTemperature(ncstItems)
 
         // --- 현재 날씨 상태 ---
         val currentPty = ncstItems
@@ -125,22 +131,14 @@ class WeatherRepository(private val context: Context) {
 
         // --- 내일 날씨 ---
         val tomorrowStr = DateTimeUtils.tomorrowString()
-        val tomorrowMin = fcstItems
-            .firstOrNull { it.category == "TMN" && it.fcstDate == tomorrowStr }
-            ?.fcstValue?.toDoubleOrNull()?.toInt() ?: 0
-        val tomorrowMax = fcstItems
-            .firstOrNull { it.category == "TMX" && it.fcstDate == tomorrowStr }
-            ?.fcstValue?.toDoubleOrNull()?.toInt() ?: 0
+        val tomorrowMin = forecastTemperature(fcstItems, tomorrowStr, "TMN")
+        val tomorrowMax = forecastTemperature(fcstItems, tomorrowStr, "TMX")
         val tomorrowCondition = getDayRepresentativeCondition(fcstItems, tomorrowStr)
 
         // --- 모레 날씨 ---
         val dayAfterStr = DateTimeUtils.dayAfterTomorrowString()
-        val dayAfterMin = fcstItems
-            .firstOrNull { it.category == "TMN" && it.fcstDate == dayAfterStr }
-            ?.fcstValue?.toDoubleOrNull()?.toInt() ?: 0
-        val dayAfterMax = fcstItems
-            .firstOrNull { it.category == "TMX" && it.fcstDate == dayAfterStr }
-            ?.fcstValue?.toDoubleOrNull()?.toInt() ?: 0
+        val dayAfterMin = forecastTemperature(fcstItems, dayAfterStr, "TMN")
+        val dayAfterMax = forecastTemperature(fcstItems, dayAfterStr, "TMX")
         val dayAfterCondition = getDayRepresentativeCondition(fcstItems, dayAfterStr)
 
         // --- 강수확률 (POP) ---
@@ -172,8 +170,8 @@ class WeatherRepository(private val context: Context) {
             currentTemp = currentTemp,
             currentCondition = currentCondition,
             todayPop = todayPop,
-            pm10 = pm10,
-            pm25 = pm25,
+            pm10 = -1,
+            pm25 = -1,
             tomorrowMin = tomorrowMin,
             tomorrowMax = tomorrowMax,
             tomorrowCondition = tomorrowCondition,
@@ -183,22 +181,6 @@ class WeatherRepository(private val context: Context) {
             dayAfterCondition = dayAfterCondition,
             dayAfterPop = dayAfterPop
         )
-    }
-
-    /**
-     * Open-Meteo Air Quality API를 호출하여 미세먼지(PM10) 및 초미세먼지(PM2.5) 수치 획득
-     */
-    private suspend fun fetchAirQuality(lat: Double, lon: Double): Pair<Int, Int> {
-        return try {
-            val response = airQualityApi.getAirQuality(latitude = lat, longitude = lon)
-            val pm10 = response.current?.pm10?.toInt() ?: -1
-            val pm25 = response.current?.pm25?.toInt() ?: -1
-            Log.d(TAG, "Air quality fetched: PM10=$pm10, PM2.5=$pm25")
-            Pair(pm10, pm25)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to fetch air quality, fallback to -1", e)
-            Pair(-1, -1)
-        }
     }
 
     /**

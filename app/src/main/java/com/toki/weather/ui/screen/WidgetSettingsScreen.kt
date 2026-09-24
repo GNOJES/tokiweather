@@ -1,5 +1,7 @@
 package com.toki.weather.ui.screen
 
+import com.toki.weather.data.model.formatTemperatureRange
+
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -44,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.glance.appwidget.updateAll
+import com.toki.weather.BuildConfig
 import com.toki.weather.R
 import com.toki.weather.data.cache.WeatherDataStore
 import com.toki.weather.data.model.CachedWeather
@@ -55,6 +58,8 @@ import com.toki.weather.util.LocationHelper
 import com.toki.weather.widget.TokiWeatherWidget
 import com.toki.weather.widget.TokiWeatherWidgetLarge
 import com.toki.weather.worker.WeatherWorkScheduler
+import com.toki.weather.worker.refreshAndUpdate
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -197,18 +202,23 @@ fun SettingsScreen(
                                 dataStore.saveUpdateInterval(currentInterval)
                                 dataStore.saveCustomLocationName(customLocationName.trim())
 
-                                Toast.makeText(context, "설정을 저장하고 날씨를 새로고침합니다.", Toast.LENGTH_SHORT).show()
-
-                                // 즉시 날씨 및 위치 새로고침 실행
-                                withContext(Dispatchers.IO) {
-                                    val repo = WeatherRepository(context)
-                                    repo.fetchAndSave()
-                                }
-
                                 WeatherWorkScheduler.schedule(context, currentInterval.toLong())
-                                TokiWeatherWidget().updateAll(context)
-                                TokiWeatherWidgetLarge().updateAll(context)
-
+                                try {
+                                    withContext(Dispatchers.IO) {
+                                        refreshAndUpdate(
+                                            fetch = { WeatherRepository(context).fetchAndSave() },
+                                            updateWidgets = {
+                                                TokiWeatherWidget().updateAll(context)
+                                                TokiWeatherWidgetLarge().updateAll(context)
+                                            }
+                                        )
+                                    }
+                                    Toast.makeText(context, "설정 저장 및 날씨 갱신 완료", Toast.LENGTH_SHORT).show()
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (_: Exception) {
+                                    Toast.makeText(context, "설정은 저장됐지만 날씨 갱신에 실패했습니다.", Toast.LENGTH_LONG).show()
+                                }
                                 (context as? android.app.Activity)?.finish()
                             }
                         },
@@ -698,7 +708,13 @@ fun SettingsScreen(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
+            Text(
+                text = "버전 ${BuildConfig.VERSION_NAME}",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
         }
 
         // 배경 색상 직접 선택 다이얼로그
@@ -893,7 +909,7 @@ fun WidgetPreviewBox(
                                         Spacer(modifier = Modifier.height(1.dp))
                                         Image(painter = painterResource(tomorrowCondition.iconRes), contentDescription = tomorrowCondition.label, modifier = Modifier.size(forecastIconSize))
                                         Spacer(modifier = Modifier.height(1.dp))
-                                        Text(text = if (weather.lastUpdated > 0) "${weather.tomorrowMin}~${weather.tomorrowMax}°" else "18~27°", fontSize = subTempSize, color = parsedText, maxLines = 1, softWrap = false)
+                                        Text(text = if (weather.lastUpdated > 0) formatTemperatureRange(weather.tomorrowMin, weather.tomorrowMax, "~") else "18~27°", fontSize = subTempSize, color = parsedText, maxLines = 1, softWrap = false)
                                     }
 
                                     Spacer(modifier = Modifier.width(forecastSpacer))
@@ -908,7 +924,7 @@ fun WidgetPreviewBox(
                                         Spacer(modifier = Modifier.height(1.dp))
                                         Image(painter = painterResource(dayAfterCondition.iconRes), contentDescription = dayAfterCondition.label, modifier = Modifier.size(forecastIconSize))
                                         Spacer(modifier = Modifier.height(1.dp))
-                                        Text(text = if (weather.lastUpdated > 0) "${weather.dayAfterMin}~${weather.dayAfterMax}°" else "19~29°", fontSize = subTempSize, color = parsedText, maxLines = 1, softWrap = false)
+                                        Text(text = if (weather.lastUpdated > 0) formatTemperatureRange(weather.dayAfterMin, weather.dayAfterMax, "~") else "19~29°", fontSize = subTempSize, color = parsedText, maxLines = 1, softWrap = false)
                                     }
                                 }
                             }
@@ -1077,7 +1093,7 @@ fun WidgetPreviewBox(
                                 )
                                 Spacer(modifier = Modifier.height(1.dp))
                                 Text(
-                                    text = if (weather.lastUpdated > 0) "${weather.tomorrowMin}° / ${weather.tomorrowMax}°" else "19° / 30°",
+                                    text = if (weather.lastUpdated > 0) formatTemperatureRange(weather.tomorrowMin, weather.tomorrowMax) else "19° / 30°",
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = parsedText,
@@ -1105,7 +1121,7 @@ fun WidgetPreviewBox(
                                 )
                                 Spacer(modifier = Modifier.height(1.dp))
                                 Text(
-                                    text = if (weather.lastUpdated > 0) "${weather.dayAfterMin}° / ${weather.dayAfterMax}°" else "19° / 29°",
+                                    text = if (weather.lastUpdated > 0) formatTemperatureRange(weather.dayAfterMin, weather.dayAfterMax) else "19° / 29°",
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = parsedText,

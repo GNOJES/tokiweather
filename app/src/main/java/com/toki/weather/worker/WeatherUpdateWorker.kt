@@ -8,6 +8,7 @@ import androidx.work.WorkerParameters
 import com.toki.weather.data.repository.WeatherRepository
 import com.toki.weather.widget.TokiWeatherWidget
 import com.toki.weather.widget.TokiWeatherWidgetLarge
+import kotlinx.coroutines.CancellationException
 
 /**
  * 백그라운드 날씨 데이터 업데이트 Worker
@@ -34,12 +35,15 @@ class WeatherUpdateWorker(
                 TokiWeatherWidget().updateAll(applicationContext)
                 TokiWeatherWidgetLarge().updateAll(applicationContext)
                 Log.d(TAG, "Weather update completed successfully")
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to update widget", e)
+                Log.e(TAG, "Failed to update widget: ${e.javaClass.simpleName}")
+                return Result.retry()
             }
             Result.success()
         } else {
-            Log.e(TAG, "Weather fetch failed", result.exceptionOrNull())
+            Log.e(TAG, "Weather fetch failed: ${result.exceptionOrNull()?.javaClass?.simpleName}")
             Result.retry()
         }
     }
