@@ -9,18 +9,18 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -33,12 +33,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.glance.appwidget.updateAll
 import androidx.lifecycle.lifecycleScope
 import com.toki.weather.data.cache.WeatherDataStore
@@ -115,10 +113,6 @@ fun MainScreen(
                 containerColor = MaterialTheme.colorScheme.surface,
                 tonalElevation = 6.dp
             ) {
-                val itemColors = NavigationBarItemDefaults.colors(
-                    indicatorColor = Color.Transparent
-                )
-
                 val tabs = listOf(
                     Triple(R.drawable.ic_tab_weather, R.drawable.ic_tab_weather_selected, "날씨"),
                     Triple(R.drawable.ic_tab_radar, R.drawable.ic_tab_radar_selected, "초단기"),
@@ -127,29 +121,37 @@ fun MainScreen(
 
                 tabs.forEachIndexed { index, (unselectedIcon, selectedIcon, label) ->
                     val isSelected = selectedTab == index
-                    NavigationBarItem(
-                        selected = isSelected,
-                        onClick = { onTabSelected(index) },
-                        colors = itemColors,
-                        icon = {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(22.dp))
-                                    .background(
-                                        if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                                        else Color.Transparent
-                                    )
-                                    .padding(horizontal = 14.dp, vertical = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Image(
-                                    painter = painterResource(if (isSelected) selectedIcon else unselectedIcon),
-                                    contentDescription = label,
-                                    modifier = Modifier.size(48.dp)
-                                )
-                            }
+                    val interactionSource = remember { MutableInteractionSource() }
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(80.dp)
+                            .selectable(
+                                selected = isSelected,
+                                onClick = { onTabSelected(index) },
+                                role = Role.Tab,
+                                interactionSource = interactionSource,
+                                indication = null
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(width = 112.dp, height = 64.dp)
+                                .clip(RoundedCornerShape(28.dp))
+                                .background(
+                                    if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                                    else Color.Transparent
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                painter = painterResource(if (isSelected) selectedIcon else unselectedIcon),
+                                contentDescription = label,
+                                modifier = Modifier.size(48.dp)
+                            )
                         }
-                    )
+                    }
                 }
             }
         }
