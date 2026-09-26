@@ -9,9 +9,16 @@ data class CachedWeather(
     val locationName: String = "설정 위치",
     val currentTemp: Int,
     val currentCondition: WeatherCondition,
+    val currentHumidity: Int? = null,
     val todayPop: Int = 0,         // 오늘 남은 시간대 최대 강수확률 (%)
+    val hourlyForecasts: List<HourlyForecast> = emptyList(),
+    val hourlyForecastIssuedAt: String? = null,
+    val halfDayForecasts: List<HalfDayForecast?> = emptyList(), // 오늘·내일·모레의 오전/오후 순서
     val pm10: Int = -1,            // 미세먼지 수치 (㎍/㎥, -1은 미수신)
     val pm25: Int = -1,            // 초미세먼지 수치 (㎍/㎥, -1은 미수신)
+    val pmObservedAt: Long? = null, // 에어코리아 관측 시각 (UTC epoch ms)
+    val airQualityLatitude: Double? = null, // 관측값 조회에 사용한 위치
+    val airQualityLongitude: Double? = null,
     val tomorrowMin: Int?,
     val tomorrowMax: Int?,
     val tomorrowCondition: WeatherCondition,

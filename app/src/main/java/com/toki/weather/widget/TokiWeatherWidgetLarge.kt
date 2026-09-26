@@ -199,7 +199,7 @@ private fun LargeWidgetLayout(
                 ) {
                     Image(
                         provider = ImageProvider(weather.currentCondition.iconRes),
-                        contentDescription = weather.currentCondition.label,
+                        contentDescription = "현재 날씨 ${weather.currentCondition.label}",
                         modifier = GlanceModifier.size(todayIconSize)
                     )
                     Spacer(modifier = GlanceModifier.width(10.dp))

@@ -21,8 +21,8 @@ android {
         applicationId = "com.toki.weather"
         minSdk = 35
         targetSdk = 36
-        versionCode = 9
-        versionName = "0.9.1"
+        versionCode = 10
+        versionName = "0.9.2"
 
         // BuildConfig에 API 키와 좌표 주입
         buildConfigField("String", "KMA_API_KEY", "\"${localProperties.getProperty("KMA_API_KEY", "")}\"")
@@ -34,6 +34,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

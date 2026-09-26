@@ -9,6 +9,7 @@ import com.toki.weather.data.model.WeatherCondition
 import com.toki.weather.data.remote.KmaResponse
 import com.toki.weather.data.remote.RetrofitClient
 import com.toki.weather.data.remote.forecastTemperature
+import com.toki.weather.data.remote.currentHumidity
 import com.toki.weather.data.remote.requireCurrentTemperature
 import com.toki.weather.data.remote.requireKmaItems
 import com.toki.weather.util.DateTimeUtils
@@ -79,16 +80,46 @@ class WeatherRepository(private val context: Context) {
                 ny = locInfo.ny
             )
 
+            // 초단기예보는 가까운 6시간의 날씨와 강수확률을 보완한다.
+            // 일시적으로 실패해도 단기예보만으로 갱신을 계속한다.
+            val ultraNow = java.time.LocalDateTime.now()
+            var ultraFcstResponse: KmaResponse? = null
+            for (candidate in listOf(ultraNow, ultraNow.minusHours(1))) {
+                val (ultraDate, ultraTime) = DateTimeUtils.getUltraSrtFcstBaseDateTime(candidate)
+                try {
+                    val response = api.getUltraSrtFcst(
+                        serviceKey = serviceKey,
+                        baseDate = ultraDate,
+                        baseTime = ultraTime,
+                        nx = locInfo.nx,
+                        ny = locInfo.ny
+                    )
+                    requireKmaItems(response)
+                    ultraFcstResponse = response
+                    break
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "Ultra-short forecast unavailable for $ultraTime: ${e.javaClass.simpleName}")
+                }
+            }
+
             // 3. 필수 날씨 응답을 먼저 검증한다. 오류 응답은 캐시에 쓰지 않는다.
-            val forecast = parseWeather(finalLocationName, ncstResponse, fcstResponse)
+            val forecast = parseWeather(finalLocationName, ncstResponse, fcstResponse, ultraFcstResponse)
 
             // 4. 실시간 대기질 (미세먼지 PM10, 초미세먼지 PM2.5) 조회
-            val (pm10, pm25) = airQualityRepository.fetch(
-                latitude = locInfo.latitude ?: 37.5665,
-                longitude = locInfo.longitude ?: 126.9780
+            val airLatitude = locInfo.latitude ?: 37.5665
+            val airLongitude = locInfo.longitude ?: 126.9780
+            val reading = airQualityRepository.fetchDetailed(
+                latitude = airLatitude,
+                longitude = airLongitude
             )
-
-            val weather = forecast.copy(pm10 = pm10, pm25 = pm25)
+            val weather = mergeAirQuality(
+                forecast.copy(airQualityLatitude = airLatitude, airQualityLongitude = airLongitude),
+                reading,
+                dataStore.weatherFlow.firstOrNull(),
+                System.currentTimeMillis()
+            )
 
             // 5. 캐시 저장
             dataStore.save(weather)
@@ -109,110 +140,75 @@ class WeatherRepository(private val context: Context) {
     private fun parseWeather(
         locationName: String,
         ncstResponse: KmaResponse,
-        fcstResponse: KmaResponse
+        fcstResponse: KmaResponse,
+        ultraFcstResponse: KmaResponse?
     ): CachedWeather {
         val ncstItems = requireKmaItems(ncstResponse)
         val fcstItems = requireKmaItems(fcstResponse)
 
         // --- 현재 기온 ---
         val currentTemp = requireCurrentTemperature(ncstItems)
+        val humidity = currentHumidity(ncstItems)
 
         // --- 현재 날씨 상태 ---
         val currentPty = ncstItems
             .firstOrNull { it.category == "PTY" }
             ?.value?.toIntOrNull() ?: 0
-        // 초단기실황에는 SKY가 없으므로, 단기예보에서 현재 시각에 가까운 SKY를 가져옴
+        // 초단기실황에는 SKY/POP가 없으므로 현재 시간대의 단기예보를 사용한다.
         val todayStr = DateTimeUtils.todayString()
-        val currentSky = fcstItems
-            .filter { it.category == "SKY" && it.fcstDate == todayStr }
-            .minByOrNull { it.fcstTime ?: "" }
-            ?.fcstValue?.toIntOrNull() ?: 1
-        val currentCondition = WeatherCondition.fromCodes(currentPty, currentSky)
+        val currentHour = String.format("%02d00", java.time.LocalDateTime.now().hour)
+        val currentForecast = selectCurrentForecastMoment(fcstItems, todayStr, currentHour)
+        val currentCondition = WeatherCondition.fromCodes(currentPty, currentForecast.sky ?: -1)
+        val todayForecast = selectDailyForecast(fcstItems, todayStr, currentHour)
+        val shortTermHourly = selectHourlyForecast(fcstItems, todayStr, currentHour)
+        val ultraItems = ultraFcstResponse?.let { response ->
+            runCatching { requireKmaItems(response) }.getOrNull()
+        }.orEmpty()
+        val hourlyForecasts = mergeUltraShortForecast(shortTermHourly, ultraItems)
+        val hourlyIssuedAt = if (ultraItems.isNotEmpty()) {
+            ultraItems.first().baseTime
+        } else fcstItems.firstOrNull()?.baseTime
 
         // --- 내일 날씨 ---
         val tomorrowStr = DateTimeUtils.tomorrowString()
         val tomorrowMin = forecastTemperature(fcstItems, tomorrowStr, "TMN")
         val tomorrowMax = forecastTemperature(fcstItems, tomorrowStr, "TMX")
-        val tomorrowCondition = getDayRepresentativeCondition(fcstItems, tomorrowStr)
+        val tomorrowForecast = selectDailyForecast(fcstItems, tomorrowStr, "0000")
 
         // --- 모레 날씨 ---
         val dayAfterStr = DateTimeUtils.dayAfterTomorrowString()
         val dayAfterMin = forecastTemperature(fcstItems, dayAfterStr, "TMN")
         val dayAfterMax = forecastTemperature(fcstItems, dayAfterStr, "TMX")
-        val dayAfterCondition = getDayRepresentativeCondition(fcstItems, dayAfterStr)
+        val dayAfterForecast = selectDailyForecast(fcstItems, dayAfterStr, "0000")
 
-        // --- 강수확률 (POP) ---
-        val currentHour = String.format("%02d00", java.time.LocalDateTime.now().hour)
-        // 오늘은 현재 시간부터 오늘 중의 최대 강수확률
-        val todayPopItems = fcstItems.filter {
-            it.category == "POP" && it.fcstDate == todayStr && (it.fcstTime ?: "0000") >= currentHour
+        val halfDayForecasts = listOf(todayStr, tomorrowStr, dayAfterStr).flatMap { date ->
+            listOf(
+                selectHalfDayForecast(fcstItems, date, "0600", "1200"),
+                selectHalfDayForecast(fcstItems, date, "1200", "1800")
+            )
         }
-        val todayPop = if (todayPopItems.isNotEmpty()) {
-            todayPopItems.mapNotNull { it.fcstValue?.toIntOrNull() }.maxOrNull() ?: 0
-        } else {
-            fcstItems.filter { it.category == "POP" && it.fcstDate == todayStr }
-                .mapNotNull { it.fcstValue?.toIntOrNull() }
-                .maxOrNull() ?: 0
-        }
-
-        // 내일 강수확률: 내일 중 최대 강수확률
-        val tomorrowPop = fcstItems.filter {
-            it.category == "POP" && it.fcstDate == tomorrowStr
-        }.mapNotNull { it.fcstValue?.toIntOrNull() }.maxOrNull() ?: 0
-
-        // 모레 강수확률: 모레 중 최대 강수확률
-        val dayAfterPop = fcstItems.filter {
-            it.category == "POP" && it.fcstDate == dayAfterStr
-        }.mapNotNull { it.fcstValue?.toIntOrNull() }.maxOrNull() ?: 0
 
         return CachedWeather(
             locationName = locationName,
             currentTemp = currentTemp,
             currentCondition = currentCondition,
-            todayPop = todayPop,
+            currentHumidity = humidity,
+            todayPop = hourlyForecasts.filter { it.date == todayStr }
+                .mapNotNull { it.pop }.maxOrNull() ?: todayForecast.pop,
+            hourlyForecasts = hourlyForecasts,
+            hourlyForecastIssuedAt = hourlyIssuedAt?.takeIf { it.length == 4 }
+                ?.let { "${it.take(2)}:${it.takeLast(2)}" },
+            halfDayForecasts = halfDayForecasts,
             pm10 = -1,
             pm25 = -1,
             tomorrowMin = tomorrowMin,
             tomorrowMax = tomorrowMax,
-            tomorrowCondition = tomorrowCondition,
-            tomorrowPop = tomorrowPop,
+            tomorrowCondition = tomorrowForecast.condition,
+            tomorrowPop = tomorrowForecast.pop,
             dayAfterMin = dayAfterMin,
             dayAfterMax = dayAfterMax,
-            dayAfterCondition = dayAfterCondition,
-            dayAfterPop = dayAfterPop
+            dayAfterCondition = dayAfterForecast.condition,
+            dayAfterPop = dayAfterForecast.pop
         )
-    }
-
-    /**
-     * 특정 날짜의 대표 날씨 상태 결정
-     * 오후 시간대(1200~1800)의 SKY/PTY 중 가장 안 좋은 상태를 대표로 사용
-     */
-    private fun getDayRepresentativeCondition(
-        items: List<KmaResponse.Item>,
-        dateStr: String
-    ): WeatherCondition {
-        val afternoonTimes = listOf("1200", "1300", "1400", "1500", "1600", "1700", "1800")
-
-        val ptyItems = items.filter {
-            it.category == "PTY" && it.fcstDate == dateStr && it.fcstTime in afternoonTimes
-        }
-        val skyItems = items.filter {
-            it.category == "SKY" && it.fcstDate == dateStr && it.fcstTime in afternoonTimes
-        }
-
-        val worstPty = ptyItems
-            .mapNotNull { it.fcstValue?.toIntOrNull() }
-            .filter { it > 0 }
-            .maxOrNull()
-
-        if (worstPty != null && worstPty > 0) {
-            return WeatherCondition.fromCodes(worstPty, 4)
-        }
-
-        val worstSky = skyItems
-            .mapNotNull { it.fcstValue?.toIntOrNull() }
-            .maxOrNull() ?: 1
-
-        return WeatherCondition.fromCodes(0, worstSky)
     }
 }

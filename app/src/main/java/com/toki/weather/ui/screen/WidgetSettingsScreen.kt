@@ -10,6 +10,7 @@ import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.BackHandler
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -103,6 +104,9 @@ fun SettingsScreen(
     }
     var showBgColorPicker by remember { mutableStateOf(false) }
     var showTextColorPicker by remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = isSaving) {}
 
     LaunchedEffect(initialWidgetType) {
         if (initialWidgetType == "3x2" || initialWidgetType == "large") {
@@ -166,6 +170,7 @@ fun SettingsScreen(
         }
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
@@ -192,36 +197,46 @@ fun SettingsScreen(
 
                     Button(
                         onClick = {
+                            if (isSaving) return@Button
+                            isSaving = true
                             coroutineScope.launch {
-                                val updatedTheme = WidgetThemeConfig(
-                                    backgroundColorHex = currentBgColor,
-                                    backgroundAlpha = currentAlpha,
-                                    textColorHex = currentTextColor
-                                )
-                                dataStore.saveTheme(updatedTheme)
-                                dataStore.saveUpdateInterval(currentInterval)
-                                dataStore.saveCustomLocationName(customLocationName.trim())
-
-                                WeatherWorkScheduler.schedule(context, currentInterval.toLong())
                                 try {
-                                    withContext(Dispatchers.IO) {
-                                        refreshAndUpdate(
-                                            fetch = { WeatherRepository(context).fetchAndSave() },
-                                            updateWidgets = {
-                                                TokiWeatherWidget().updateAll(context)
-                                                TokiWeatherWidgetLarge().updateAll(context)
-                                            }
-                                        )
+                                    val updatedTheme = WidgetThemeConfig(
+                                        backgroundColorHex = currentBgColor,
+                                        backgroundAlpha = currentAlpha,
+                                        textColorHex = currentTextColor
+                                    )
+                                    dataStore.saveTheme(updatedTheme)
+                                    dataStore.saveUpdateInterval(currentInterval)
+                                    dataStore.saveCustomLocationName(customLocationName.trim())
+                                    WeatherWorkScheduler.schedule(context, currentInterval.toLong())
+                                    try {
+                                        withContext(Dispatchers.IO) {
+                                            refreshAndUpdate(
+                                                fetch = { WeatherRepository(context).fetchAndSave() },
+                                                updateWidgets = {
+                                                    TokiWeatherWidget().updateAll(context)
+                                                    TokiWeatherWidgetLarge().updateAll(context)
+                                                }
+                                            )
+                                        }
+                                        Toast.makeText(context, "설정 저장 및 날씨 갱신 완료", Toast.LENGTH_SHORT).show()
+                                    } catch (e: CancellationException) {
+                                        throw e
+                                    } catch (_: Exception) {
+                                        Toast.makeText(context, "설정은 저장됐지만 날씨 갱신에 실패했습니다.", Toast.LENGTH_LONG).show()
                                     }
-                                    Toast.makeText(context, "설정 저장 및 날씨 갱신 완료", Toast.LENGTH_SHORT).show()
+                                    onSaved?.invoke() ?: (context as? android.app.Activity)?.finish()
                                 } catch (e: CancellationException) {
                                     throw e
                                 } catch (_: Exception) {
-                                    Toast.makeText(context, "설정은 저장됐지만 날씨 갱신에 실패했습니다.", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "설정을 저장하지 못했습니다. 다시 시도해 주세요.", Toast.LENGTH_LONG).show()
+                                } finally {
+                                    isSaving = false
                                 }
-                                (context as? android.app.Activity)?.finish()
                             }
                         },
+                        enabled = !isSaving,
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                     ) {
                         Text("저장 및 새로고침", fontWeight = FontWeight.Bold, fontSize = 13.sp)
@@ -740,6 +755,29 @@ fun SettingsScreen(
                 }
             )
         }
+    }
+    if (isSaving) {
+        Box(
+            modifier = Modifier.fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.45f))
+                .clickable(
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                    indication = null
+                ) {},
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    Text("설정 저장 및 날씨 갱신 중…", fontSize = 14.sp)
+                }
+            }
+        }
+    }
     }
 }
 

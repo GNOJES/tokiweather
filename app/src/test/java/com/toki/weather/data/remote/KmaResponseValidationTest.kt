@@ -40,4 +40,10 @@ class KmaResponseValidationTest {
         assertEquals(0, forecastTemperature(items, "20260925", "TMN"))
         assertNull(forecastTemperature(items, "20260925", "TMX"))
     }
+
+    @Test fun humidityUsesObservedRelativeHumidityAndKeepsMissingValueAbsent() {
+        assertEquals(61, currentHumidity(listOf(item("REH", "61"))))
+        assertNull(currentHumidity(listOf(item("PTY", "0"))))
+        assertNull(currentHumidity(listOf(item("REH", "bad"))))
+    }
 }

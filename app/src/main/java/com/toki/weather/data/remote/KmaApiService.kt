@@ -24,6 +24,17 @@ interface KmaApiService {
         @Query("numOfRows") numOfRows: Int = 10
     ): KmaResponse
 
+    @GET("getUltraSrtFcst")
+    suspend fun getUltraSrtFcst(
+        @Query(value = "serviceKey", encoded = true) serviceKey: String,
+        @Query("base_date") baseDate: String,
+        @Query("base_time") baseTime: String,
+        @Query("nx") nx: Int,
+        @Query("ny") ny: Int,
+        @Query("dataType") dataType: String = "JSON",
+        @Query("numOfRows") numOfRows: Int = 1000
+    ): KmaResponse
+
     /**
      * 단기예보 조회 - 기온(TMP), 최저(TMN), 최고(TMX), 하늘상태(SKY), 강수형태(PTY)
      * 하루 8회 발표: 0200, 0500, 0800, 1100, 1400, 1700, 2000, 2300

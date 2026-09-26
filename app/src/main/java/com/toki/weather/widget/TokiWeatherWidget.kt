@@ -166,14 +166,14 @@ private fun WeatherWidgetContent(
                 modifier = GlanceModifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top
             ) {
-                // [좌측: 현재 날씨] 전체 가로의 5/11 비율
+                // [좌측: 현재 날씨와 기온, 오늘 최고 강수확률] 전체 가로의 5/11 비율
                 Column(
                     modifier = GlanceModifier.width(todayWidth),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Image(
                         provider = ImageProvider(weather.currentCondition.iconRes),
-                        contentDescription = weather.currentCondition.label,
+                        contentDescription = "현재 날씨 ${weather.currentCondition.label}",
                         modifier = GlanceModifier.size(todayIconSize)
                     )
                     Spacer(modifier = GlanceModifier.height(1.dp))
@@ -419,5 +419,3 @@ private fun PopBar(
         }
     }
 }
-
-

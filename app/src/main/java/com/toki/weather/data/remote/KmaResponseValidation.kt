@@ -11,6 +11,10 @@ fun requireCurrentTemperature(items: List<KmaResponse.Item>): Int =
         ?.value?.toDoubleOrNull()?.takeIf { it.isFinite() }?.toInt()
         ?: throw IllegalStateException("KMA response has no valid current temperature")
 
+fun currentHumidity(items: List<KmaResponse.Item>): Int? =
+    items.firstOrNull { it.category == "REH" }
+        ?.value?.toIntOrNull()?.takeIf { it in 0..100 }
+
 fun forecastTemperature(items: List<KmaResponse.Item>, date: String, category: String): Int? =
     items.firstOrNull { it.category == category && it.fcstDate == date }
         ?.fcstValue?.toDoubleOrNull()?.takeIf { it.isFinite() }?.toInt()

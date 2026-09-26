@@ -11,15 +11,16 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
@@ -96,8 +97,44 @@ fun MainScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val dataStore = remember { WeatherDataStore(context) }
-    val cachedWeather by dataStore.weatherFlow.collectAsState(initial = CachedWeather.EMPTY)
+    val loadedWeather by dataStore.weatherFlow.collectAsState(initial = null)
+    val cachedWeather = loadedWeather ?: CachedWeather.EMPTY
+    val hourlyIntervalHours by dataStore.hourlyIntervalFlow.collectAsState(initial = 1)
     var isRefreshing by remember { mutableStateOf(false) }
+    var initialRefreshAttempted by remember { mutableStateOf(false) }
+
+    val refreshWeather: () -> Unit = {
+        if (!isRefreshing) {
+            isRefreshing = true
+            coroutineScope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        refreshAndUpdate(
+                            fetch = { WeatherRepository(context).fetchAndSave() },
+                            updateWidgets = {
+                                TokiWeatherWidget().updateAll(context)
+                                TokiWeatherWidgetLarge().updateAll(context)
+                            }
+                        )
+                    }
+                    Toast.makeText(context, "날씨 정보가 갱신되었습니다.", Toast.LENGTH_SHORT).show()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    Toast.makeText(context, "날씨 갱신에 실패했습니다. 잠시 후 다시 시도해 주세요.", Toast.LENGTH_SHORT).show()
+                } finally {
+                    isRefreshing = false
+                }
+            }
+        }
+    }
+
+    androidx.compose.runtime.LaunchedEffect(loadedWeather?.lastUpdated) {
+        if (loadedWeather?.lastUpdated == 0L && !initialRefreshAttempted) {
+            initialRefreshAttempted = true
+            refreshWeather()
+        }
+    }
 
     // 뒤로가기 제어: 1번(초단기), 2번(설정) 탭일 때는 0번(날씨) 탭으로 이동
     // 0번(날씨) 탭일 때는 앱 종료(시스템 기본 동작)
@@ -108,10 +145,12 @@ fun MainScreen(
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            NavigationBar(
-                modifier = Modifier.fillMaxWidth(),
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .navigationBarsPadding()
+                    .height(64.dp)
             ) {
                 val tabs = listOf(
                     Triple(R.drawable.ic_tab_weather, R.drawable.ic_tab_weather_selected, "날씨"),
@@ -125,7 +164,7 @@ fun MainScreen(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(80.dp)
+                            .height(64.dp)
                             .selectable(
                                 selected = isSelected,
                                 onClick = { onTabSelected(index) },
@@ -165,28 +204,10 @@ fun MainScreen(
                 0 -> WeatherPlaceholderScreen(
                     weather = cachedWeather,
                     isRefreshing = isRefreshing,
-                    onRefresh = {
-                        coroutineScope.launch {
-                            isRefreshing = true
-                            try {
-                                withContext(Dispatchers.IO) {
-                                    refreshAndUpdate(
-                                        fetch = { WeatherRepository(context).fetchAndSave() },
-                                        updateWidgets = {
-                                            TokiWeatherWidget().updateAll(context)
-                                            TokiWeatherWidgetLarge().updateAll(context)
-                                        }
-                                    )
-                                }
-                                Toast.makeText(context, "날씨 정보가 갱신되었습니다.", Toast.LENGTH_SHORT).show()
-                            } catch (e: CancellationException) {
-                                throw e
-                            } catch (_: Exception) {
-                                Toast.makeText(context, "날씨 갱신에 실패했습니다. 잠시 후 다시 시도해 주세요.", Toast.LENGTH_SHORT).show()
-                            } finally {
-                                isRefreshing = false
-                            }
-                        }
+                    onRefresh = refreshWeather,
+                    hourlyIntervalHours = hourlyIntervalHours,
+                    onHourlyIntervalSelected = { hours ->
+                        coroutineScope.launch { dataStore.saveHourlyInterval(hours) }
                     }
                 )
                 1 -> RadarWebViewScreen(

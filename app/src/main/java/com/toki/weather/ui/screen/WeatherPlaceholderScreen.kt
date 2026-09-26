@@ -6,6 +6,8 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,17 +46,30 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.toki.weather.R
 import com.toki.weather.data.model.CachedWeather
+import com.toki.weather.data.model.HalfDayForecast
+import com.toki.weather.data.model.HourlyForecast
+import com.toki.weather.data.model.WeatherCondition
+import com.toki.weather.data.repository.ThreeHourForecast
+import com.toki.weather.data.repository.summarizeThreeHours
 import com.toki.weather.util.DateTimeUtils
+import com.toki.weather.util.SolarTime
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WeatherPlaceholderScreen(
     weather: CachedWeather,
     isRefreshing: Boolean = false,
-    onRefresh: () -> Unit = {}
+    onRefresh: () -> Unit = {},
+    hourlyIntervalHours: Int = 1,
+    onHourlyIntervalSelected: (Int) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val latitude = weather.airQualityLatitude ?: 37.5665
+    val longitude = weather.airQualityLongitude ?: 126.9780
 
     Column(
         modifier = Modifier
@@ -113,7 +128,7 @@ fun WeatherPlaceholderScreen(
                 .padding(horizontal = 16.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // ─── 1. 현재 날씨 메인 카드 ───
+            // ─── 1. 현재 날씨 ───
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
@@ -124,90 +139,140 @@ fun WeatherPlaceholderScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(20.dp),
+                        .padding(vertical = 14.dp, horizontal = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Image(
-                        painter = painterResource(weather.currentCondition.iconRes),
-                        contentDescription = weather.currentCondition.label,
-                        modifier = Modifier.size(88.dp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "${weather.currentTemp}°",
-                        fontSize = 44.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = weather.currentCondition.label,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_rain_drop),
-                                contentDescription = "강수확률",
-                                tint = Color(0xFF4AA3FF),
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text(
-                                text = "강수확률 ${weather.todayPop}%",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(weatherIconRes(weather.currentCondition, LocalDateTime.now(ZoneId.of("Asia/Seoul")), latitude, longitude)),
+                            contentDescription = weather.currentCondition.label,
+                            modifier = Modifier.size(78.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Row(verticalAlignment = Alignment.Bottom) {
+                                Text(
+                                    text = if (weather.lastUpdated > 0L) "${weather.currentTemp}°" else "—",
+                                    fontSize = 40.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = weather.currentCondition.label,
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(bottom = 5.dp)
+                                )
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "습도 ${weather.currentHumidity?.let { "$it%" } ?: "—"}",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_rain_drop),
+                                    contentDescription = "오늘 남은 시간 최고 강수확률",
+                                    tint = Color(0xFF4AA3FF),
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(2.dp))
+                                Text("${weather.todayPop}%", fontSize = 11.sp, color = Color(0xFF4AA3FF))
+                            }
                         }
                     }
                 }
             }
 
-            // ─── 2. 단기 예보 요약 & 상세 예보 준비 안내 카드 ───
+            // ─── 2. 시간별 예보 (옆으로 스크롤) ───
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                )
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
-                    Text(
-                        text = "예보 요약",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        ForecastSimpleItem(
-                            dayLabel = "내일",
-                            condition = weather.tomorrowCondition.label,
-                            iconRes = weather.tomorrowCondition.iconRes,
-                            tempRange = formatTemperatureRange(weather.tomorrowMin, weather.tomorrowMax),
-                            pop = weather.tomorrowPop
-                        )
-                        ForecastSimpleItem(
-                            dayLabel = "모레",
-                            condition = weather.dayAfterCondition.label,
-                            iconRes = weather.dayAfterCondition.iconRes,
-                            tempRange = formatTemperatureRange(weather.dayAfterMin, weather.dayAfterMax),
-                            pop = weather.dayAfterPop
-                        )
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("기상청 시간별 예보", fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                        weather.hourlyForecastIssuedAt?.let {
+                            Text("$it 발표", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.width(6.dp))
+                        }
+                        listOf(3, 1).forEach { interval ->
+                            val selected = hourlyIntervalHours == interval
+                            Text(
+                                text = "${interval}시간",
+                                fontSize = 10.sp,
+                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else Color.Transparent)
+                                    .clickable { onHourlyIntervalSelected(interval) }
+                                    .padding(horizontal = 7.dp, vertical = 5.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(3.dp))
+                    if (weather.hourlyForecasts.isEmpty()) {
+                        Text("시간별 예보를 불러오는 중…", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            if (hourlyIntervalHours == 3) {
+                                val periods = summarizeThreeHours(weather.hourlyForecasts)
+                                periods.forEachIndexed { index, item ->
+                                    if (index > 0 && periods[index - 1].date != item.date) ForecastDateDivider()
+                                    ThreeHourForecastCell(item, index == 0 || periods[index - 1].date != item.date, latitude, longitude)
+                                }
+                            } else {
+                                weather.hourlyForecasts.forEachIndexed { index, item ->
+                                    if (index > 0 && weather.hourlyForecasts[index - 1].date != item.date) ForecastDateDivider()
+                                    HourlyForecastCell(item, index == 0 || weather.hourlyForecasts[index - 1].date != item.date, latitude, longitude)
+                                }
+                            }
+                        }
                     }
                 }
             }
 
-            // ─── 3. 대기질 (미세먼지 / 초미세먼지) 카드 ───
+            // ─── 3. 내일·모레 오전·오후 예보 ───
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)) {
+                    Text("기상청 일별 예보", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf("내일", "모레").forEachIndexed { index, day ->
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
+                                    .padding(5.dp)
+                            ) {
+                                Text(day, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 6.dp))
+                                Spacer(modifier = Modifier.height(1.dp))
+                                val offset = (index + 1) * 2
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    HalfDayForecastCell("오전", weather.halfDayForecasts.getOrNull(offset), Modifier.weight(1f))
+                                    HalfDayForecastCell("오후", weather.halfDayForecasts.getOrNull(offset + 1), Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ─── 4. 대기질 (미세먼지 / 초미세먼지) 카드 ───
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -215,14 +280,14 @@ fun WeatherPlaceholderScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                 )
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(10.dp)) {
                     Text(
                         text = "실시간 대기질 · 에어코리아",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
@@ -241,7 +306,7 @@ fun WeatherPlaceholderScreen(
                 }
             }
 
-            // ─── 4. 기상청 날씨누리 바로가기 ───
+            // ─── 5. 기상청 날씨누리 바로가기 ───
             Card(
                 onClick = {
                     try {
@@ -301,6 +366,102 @@ fun WeatherPlaceholderScreen(
 }
 
 @Composable
+private fun HourlyForecastCell(forecast: HourlyForecast, showDate: Boolean, latitude: Double, longitude: Double) {
+    Column(modifier = Modifier.width(48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            if (showDate && forecast.date.length == 8) "${forecast.date.substring(4, 6).toInt()}/${forecast.date.substring(6, 8).toInt()}" else " ",
+            fontSize = 9.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text("${forecast.time.take(2)}시", fontSize = 11.sp, fontWeight = FontWeight.Medium)
+        Image(
+            painter = painterResource(weatherIconRes(forecast.condition, forecastDateTime(forecast.date, forecast.time), latitude, longitude)),
+            contentDescription = forecast.condition.label,
+            modifier = Modifier.size(30.dp)
+        )
+        Text(forecast.temperature?.let { "$it°" } ?: "—", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        Text(forecast.pop?.let { "$it%" } ?: "—", fontSize = 11.sp, color = Color(0xFF4AA3FF))
+    }
+}
+
+@Composable
+private fun ForecastDateDivider() {
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 2.dp, vertical = 14.dp)
+            .width(1.dp)
+            .height(68.dp)
+            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f))
+    )
+}
+
+private val forecastDateTimeFormat = DateTimeFormatter.ofPattern("yyyyMMddHHmm")
+
+private fun forecastDateTime(date: String, time: String): LocalDateTime? =
+    runCatching { LocalDateTime.parse(date + time, forecastDateTimeFormat) }.getOrNull()
+
+private fun weatherIconRes(
+    condition: WeatherCondition,
+    dateTime: LocalDateTime?,
+    latitude: Double,
+    longitude: Double
+): Int {
+    if (dateTime == null || !SolarTime.isNight(dateTime, latitude, longitude)) return condition.iconRes
+    return when (condition) {
+        WeatherCondition.CLEAR -> R.drawable.ic_weather_clear_night
+        WeatherCondition.CLOUDY -> R.drawable.ic_weather_cloudy_night
+        else -> condition.iconRes
+    }
+}
+
+@Composable
+private fun ThreeHourForecastCell(forecast: ThreeHourForecast, showDate: Boolean, latitude: Double, longitude: Double) {
+    Column(modifier = Modifier.width(64.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            if (showDate && forecast.date.length == 8) "${forecast.date.substring(4, 6).toInt()}/${forecast.date.substring(6, 8).toInt()}" else " ",
+            fontSize = 9.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text("${forecast.startTime.take(2)}시", fontSize = 11.sp, fontWeight = FontWeight.Medium)
+        Image(
+            painter = painterResource(weatherIconRes(forecast.condition, forecastDateTime(forecast.date, forecast.startTime)?.plusHours(1), latitude, longitude)),
+            contentDescription = forecast.condition.label,
+            modifier = Modifier.size(30.dp)
+        )
+        val temperature = when {
+            forecast.minTemp == null -> "—"
+            forecast.minTemp == forecast.maxTemp -> "${forecast.minTemp}°"
+            else -> "${forecast.minTemp}~${forecast.maxTemp}°"
+        }
+        Text(temperature, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Text(forecast.pop?.let { "$it%" } ?: "—", fontSize = 11.sp, color = Color(0xFF4AA3FF))
+    }
+}
+
+@Composable
+private fun HalfDayForecastCell(label: String, forecast: HalfDayForecast?, modifier: Modifier = Modifier) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (forecast != null) {
+            Image(
+                painter = painterResource(forecast.condition.iconRes),
+                contentDescription = "$label ${forecast.condition.label}",
+                modifier = Modifier.size(33.dp)
+            )
+        } else {
+            Spacer(modifier = Modifier.size(33.dp))
+        }
+        Text(
+            forecast?.let { formatTemperatureRange(it.minTemp, it.maxTemp) } ?: "자료 없음",
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
+        )
+        Text(forecast?.pop?.let { "$it%" } ?: "—", fontSize = 11.sp, color = Color(0xFF4AA3FF))
+    }
+}
+
+@Composable
 private fun AirQualityItem(
     title: String,
     value: String,
@@ -324,27 +485,5 @@ private fun AirQualityItem(
                 color = color
             )
         }
-    }
-}
-
-@Composable
-private fun ForecastSimpleItem(
-    dayLabel: String,
-    condition: String,
-    iconRes: Int,
-    tempRange: String,
-    pop: Int
-) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(text = dayLabel, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(4.dp))
-        Image(
-            painter = painterResource(iconRes),
-            contentDescription = condition,
-            modifier = Modifier.size(34.dp)
-        )
-        Spacer(modifier = Modifier.height(3.dp))
-        Text(text = tempRange, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-        Text(text = "💧 $pop%", fontSize = 11.sp, color = Color(0xFF4AA3FF))
     }
 }

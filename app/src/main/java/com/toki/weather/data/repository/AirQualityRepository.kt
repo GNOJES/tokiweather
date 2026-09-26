@@ -9,11 +9,19 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.time.LocalDateTime
+import java.io.IOException
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.*
 
 /** 현재 위치에서 가장 가까운 측정소의 최신 시간별 실측값을 조회한다. */
+data class AirQualityReading(
+    val pm10: Int,
+    val pm25: Int,
+    val observedAt: Long?,
+    val failedToLoad: Boolean = false
+)
+
 class AirQualityRepository(
     private val api: AirQualityApiService,
     private val serviceKey: String,
@@ -24,8 +32,13 @@ class AirQualityRepository(
     private var stationsLoadedAt = 0L
 
     suspend fun fetch(latitude: Double, longitude: Double): Pair<Int, Int> {
+        val reading = fetchDetailed(latitude, longitude)
+        return reading.pm10 to reading.pm25
+    }
+
+    suspend fun fetchDetailed(latitude: Double, longitude: Double): AirQualityReading {
         if (serviceKey.isBlank() || !latitude.isFinite() || !longitude.isFinite() ||
-            latitude !in -90.0..90.0 || longitude !in -180.0..180.0) return -1 to -1
+            latitude !in -90.0..90.0 || longitude !in -180.0..180.0) return AirQualityReading(-1, -1, null)
         var phase = "stations"
         return try {
             val nearest = stations().mapNotNull { station ->
@@ -35,25 +48,28 @@ class AirQualityRepository(
                     lat !in -90.0..90.0 || lon !in -180.0..180.0) return@mapNotNull null
                 station to distanceKm(latitude, longitude, lat, lon)
             }.minByOrNull { it.second }?.takeIf { it.second <= 50.0 }?.first
-                ?: return -1 to -1
+                ?: return AirQualityReading(-1, -1, null)
             phase = "measurement"
-            val measurement = api.getAirQuality(serviceKey, nearest.stationName!!)
-                .checkedItems().firstOrNull() ?: return -1 to -1
+            val measurement = retryOnceOnNetworkFailure { api.getAirQuality(serviceKey, nearest.stationName!!) }
+                .checkedItems().firstOrNull() ?: return AirQualityReading(-1, -1, null)
             phase = "timestamp"
             val measuredAt = measurement.dataTime?.let {
                 LocalDateTime.parse(it, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
                     .atZone(ZoneId.of("Asia/Seoul")).toInstant().toEpochMilli()
-            } ?: return -1 to -1
+            } ?: return AirQualityReading(-1, -1, null)
             // 오래된 마지막 정상값을 현재 값으로 보여주지 않는다.
-            if (now() - measuredAt !in 0L..3 * 60 * 60 * 1000L) return -1 to -1
-            concentration(measurement.pm10Value, measurement.pm10Flag) to
-                concentration(measurement.pm25Value, measurement.pm25Flag)
+            if (now() - measuredAt !in 0L..3 * 60 * 60 * 1000L) return AirQualityReading(-1, -1, null)
+            AirQualityReading(
+                concentration(measurement.pm10Value, measurement.pm10Flag),
+                concentration(measurement.pm25Value, measurement.pm25Flag),
+                measuredAt
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             // 예외 메시지에는 URL과 인증키가 포함될 수 있으므로 유형만 기록한다.
             if (BuildConfig.DEBUG) runCatching { Log.w("AirQualityRepository", "$phase failed: ${e.javaClass.simpleName}") }
-            -1 to -1
+            AirQualityReading(-1, -1, null, failedToLoad = true)
         }
     }
 
@@ -64,7 +80,7 @@ class AirQualityRepository(
         val collected = mutableListOf<AirQualityStation>()
         var page = 1
         do {
-            val response = api.getStations(serviceKey, page = page)
+            val response = retryOnceOnNetworkFailure { api.getStations(serviceKey, page = page) }
             val items = response.checkedItems()
             collected.addAll(items)
             val total = response.response?.body?.totalCount ?: 0
@@ -80,6 +96,12 @@ class AirQualityRepository(
     private fun <T> AirKoreaResponse<T>.checkedItems(): List<T> {
         check(response?.header?.resultCode == "00") { "AirKorea request failed" }
         return response?.body?.items.orEmpty()
+    }
+
+    private suspend fun <T> retryOnceOnNetworkFailure(request: suspend () -> T): T = try {
+        request()
+    } catch (_: IOException) {
+        request()
     }
 
     private fun concentration(value: String?, flag: String?): Int =

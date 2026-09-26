@@ -37,6 +37,10 @@ object DateTimeUtils {
         return Pair(baseDate, baseTime)
     }
 
+    fun getUltraSrtFcstBaseDateTime(now: LocalDateTime = LocalDateTime.now()): Pair<String, String> {
+        return now.format(DATE_FORMAT) to String.format("%02d00", now.hour)
+    }
+
     /**
      * 현재 시각 기준 단기예보 base_date, base_time 계산
      * 가장 최근 발표 시각을 찾아 반환

@@ -109,4 +109,23 @@ class AirQualityRepositoryTest {
         assertEquals(-1 to -1, repository(measurements = reading.replace("15:00", "16:00")).fetch(37.57, 126.98))
     }
 
+    @Test fun transientStationNetworkFailureRetriesAndReturnsReading() = runBlocking {
+        var stationAttempts = 0
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            val request = chain.request()
+            val isStations = request.url.encodedPath.endsWith("getMsrstnList")
+            if (isStations && ++stationAttempts == 1) throw java.io.IOException("temporary timeout")
+            val items = if (isStations) stations else reading
+            val body = """{"response":{"header":{"resultCode":"00"},"body":{"totalCount":2,"items":$items}}}"""
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                .body(body.toResponseBody("application/json".toMediaType())).build()
+        }.build()
+        val api = Retrofit.Builder().baseUrl("https://example.test/B552584/")
+            .client(client).addConverterFactory(GsonConverterFactory.create()).build()
+            .create(AirQualityApiService::class.java)
+
+        assertEquals(32 to 12, AirQualityRepository(api, "test", { now }).fetch(37.5665, 126.9780))
+        assertEquals(2, stationAttempts)
+    }
+
 }
