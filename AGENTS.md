@@ -139,7 +139,7 @@
    - `v0.9.0` 태그와 [GitHub Release](https://github.com/GNOJES/tokiweather/releases/tag/v0.9.0)를 게시하고 `tokiweather-v0.9.0.apk`를 첨부함.
    - 기존 v0.8.0 배포 APK와 같은 Android 디버그 인증서로 서명한 APK이므로 덮어쓰기 업데이트가 가능함. 별도 릴리즈 서명키는 아직 없음. 이후 서명키를 바꾸면 기존 설치본과 업데이트 호환성이 끊기므로 서명 정책 변경을 먼저 설계할 것.
    - `v0.9.1` 태그와 [GitHub Release](https://github.com/GNOJES/tokiweather/releases/tag/v0.9.1)를 게시하고 동일한 디버그 인증서의 `tokiweather-v0.9.1.apk`를 첨부함. GitHub에서 다시 받은 APK의 SHA-256이 로컬 검증본과 일치함.
-   - `v0.9.2`는 versionCode `10`이며, 날씨 예보·야간 아이콘·화면 배치와 대기질/갱신 신뢰성 개선을 포함한다. release APK도 동일한 디버그 인증서로 서명한다. APK 빌드와 단위 테스트(51개) 완료; [GitHub Release](https://github.com/GNOJES/tokiweather/releases/tag/v0.9.2)와 APK SHA-256은 게시 후 확인한다.
+   - `v0.9.2`는 versionCode `10`이며, 날씨 예보·야간 아이콘·화면 배치와 대기질/갱신 신뢰성 개선을 포함한다. 동일한 디버그 인증서로 서명한 `tokiweather-v0.9.2.apk`를 [GitHub Release](https://github.com/GNOJES/tokiweather/releases/tag/v0.9.2)에 게시했다. 단위 테스트 51개와 Debug·Release 빌드가 통과했고, GitHub 공개 다운로드본의 SHA-256 `f47984bed6e7bba92d0378d8b6b255dfc8e258640be11063cbd525e3faa020c8`이 로컬 APK와 일치한다.
 3. **에어코리아 연동 운영 확인**:
    - PM10·PM2.5 조회는 에어코리아로 전환됨. `local.properties`의 `AIRKOREA_API_KEY`는 Decoding 키를 저장하며 Retrofit이 URL 인코딩함. 키를 Git/로그에 포함하지 말 것.
    - [대기오염정보](https://www.data.go.kr/data/15073861/openapi.do)와 [측정소정보](https://www.data.go.kr/data/15073877/openapi.do) 두 서비스의 활용승인이 필요. 2026-09-23 두 서비스 모두 resultCode=00 인증 성공. 측정소 목록 672개 수신 및 서울시청 테스트 좌표의 최근접 중구 측정소 대기질 조회 성공. 첫 대기질 요청은 시간 초과였으나 재시도 성공.
