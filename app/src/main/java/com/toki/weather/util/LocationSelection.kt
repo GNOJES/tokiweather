@@ -19,6 +19,7 @@ object LocationSelection {
     // 근처 주소일 뿐 경계 판정은 아니다. 멀리 떨어진 주소는 동 이름의 근거로 쓰지 않는다.
     private const val MAX_ADDRESS_DISTANCE_METERS = 200.0
     private const val MAX_FIX_AGE_NANOS = 120_000_000_000L
+    private const val QUICK_FIX_AGE_NANOS = 30_000_000_000L
     private const val COMPARABLE_FIX_WINDOW_NANOS = 15_000_000_000L
 
     fun addressName(latitude: Double, longitude: Double, candidates: List<AddressCandidate>): String {
@@ -54,6 +55,13 @@ object LocationSelection {
         return eligible.filter { newest - fixes[it].elapsedNanos <= COMPARABLE_FIX_WINDOW_NANOS }
             .minByOrNull { fixes[it].accuracyMeters }
     }
+
+    /** 바로 쓸 수 있는 최근 위치가 있으면 새 GPS 획득을 기다리지 않는다. */
+    fun quickFixIndex(fixes: List<LocationFix>, nowNanos: Long): Int? =
+        fixIndex(fixes, nowNanos)?.takeIf { index ->
+            nowNanos - fixes[index].elapsedNanos <= QUICK_FIX_AGE_NANOS &&
+                fixes[index].accuracyMeters <= 100f
+        }
 
     private fun isDongName(value: String): Boolean =
         value.matches(Regex("^[가-힣][가-힣0-9]*(?:동[0-9]*가?|[0-9]+가|읍|면)$"))

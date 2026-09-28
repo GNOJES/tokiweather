@@ -74,8 +74,10 @@ class WeatherDataStore(private val context: Context) {
      * 캐시된 날씨 데이터를 Flow로 관찰
      */
     val weatherFlow: Flow<CachedWeather> = context.weatherDataStore.data.map { prefs ->
+        // 이전 버전이 위치 권한 없이 서울 기본 좌표로 저장한 날씨는 현재 위치 자료가 아니다.
+        if (prefs[KEY_LOCATION_NAME] == "설정 위치") return@map CachedWeather.EMPTY
         CachedWeather(
-            locationName = prefs[KEY_LOCATION_NAME] ?: "설정 위치",
+            locationName = prefs[KEY_LOCATION_NAME] ?: "위치 확인 중",
             currentTemp = prefs[KEY_CURRENT_TEMP] ?: 0,
             currentCondition = prefs[KEY_CURRENT_CONDITION]?.let {
                 try { WeatherCondition.valueOf(it) } catch (_: Exception) { WeatherCondition.UNKNOWN }

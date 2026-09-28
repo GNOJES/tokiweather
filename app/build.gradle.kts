@@ -21,8 +21,8 @@ android {
         applicationId = "com.toki.weather"
         minSdk = 35
         targetSdk = 36
-        versionCode = 11
-        versionName = "0.9.3"
+        versionCode = 12
+        versionName = "0.9.4"
 
         // BuildConfig에 API 키와 좌표 주입
         buildConfigField("String", "KMA_API_KEY", "\"${localProperties.getProperty("KMA_API_KEY", "")}\"")

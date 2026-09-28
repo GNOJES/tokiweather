@@ -15,7 +15,6 @@ import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
-import com.toki.weather.BuildConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
@@ -67,8 +66,7 @@ object LocationHelper {
     @SuppressLint("MissingPermission")
     suspend fun getCurrentLocationInfo(context: Context): LocationInfo {
         if (!hasLocationPermission(context)) {
-            Log.w(TAG, "Location permission not granted. Using default coordinates.")
-            return getDefaultLocationInfo()
+            throw IllegalStateException("Location permission not granted")
         }
 
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
@@ -83,15 +81,31 @@ object LocationHelper {
             Priority.PRIORITY_HIGH_ACCURACY
         } else Priority.PRIORITY_BALANCED_POWER_ACCURACY
 
-        val freshLocation: Location? = try {
-            withTimeoutOrNull(10_000L) {
+        val lastLocation: Location? = try {
+            withTimeoutOrNull(1_500L) {
+                suspendCancellableCoroutine { cont ->
+                    fusedLocationClient.lastLocation
+                        .addOnSuccessListener { if (cont.isActive) cont.resume(it) }
+                        .addOnFailureListener { if (cont.isActive) cont.resume(null) }
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) { null }
+        val cachedCandidates = listOfNotNull(cachedGps, lastLocation).filter { it.hasAccuracy() }
+        val quickIndex = LocationSelection.quickFixIndex(
+            cachedCandidates.map { LocationFix(it.elapsedRealtimeNanos, it.accuracy) },
+            SystemClock.elapsedRealtimeNanos()
+        )
+        val freshLocation: Location? = if (quickIndex != null) null else try {
+            withTimeoutOrNull(6_000L) {
                 suspendCancellableCoroutine { cont ->
                     val cts = CancellationTokenSource()
                     cont.invokeOnCancellation { cts.cancel() }
                     val request = CurrentLocationRequest.Builder()
                         .setPriority(priority)
                         .setMaxUpdateAgeMillis(5_000L)
-                        .setDurationMillis(9_000L)
+                        .setDurationMillis(5_000L)
                         .build()
                     fusedLocationClient.getCurrentLocation(request, cts.token)
                         .addOnSuccessListener { if (cont.isActive) cont.resume(it) }
@@ -101,20 +115,6 @@ object LocationHelper {
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) { null }
-
-        val lastLocation: Location? = if (freshLocation == null) {
-            try {
-                withTimeoutOrNull(2_000L) {
-                    suspendCancellableCoroutine { cont ->
-                        fusedLocationClient.lastLocation
-                            .addOnSuccessListener { if (cont.isActive) cont.resume(it) }
-                            .addOnFailureListener { if (cont.isActive) cont.resume(null) }
-                    }
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) { null }
-        } else null
         val candidates = listOfNotNull(freshLocation, cachedGps, lastLocation)
             .filter { it.hasAccuracy() }
         val selectedIndex = LocationSelection.fixIndex(
@@ -124,8 +124,7 @@ object LocationHelper {
         val location = selectedIndex?.let { candidates[it] }
 
         if (location == null) {
-            Log.w(TAG, "Location is null, fallback to default")
-            return getDefaultLocationInfo()
+            throw IllegalStateException("Current location unavailable")
         }
 
         Log.d(TAG, "Acquired coordinates: lat=${location.latitude}, lon=${location.longitude}, accuracy=${location.accuracy}m, provider=${location.provider}")
@@ -179,13 +178,4 @@ object LocationHelper {
         }
     }
 
-    private fun getDefaultLocationInfo(): LocationInfo {
-        return LocationInfo(
-            nx = BuildConfig.DEFAULT_NX,
-            ny = BuildConfig.DEFAULT_NY,
-            locationName = "설정 위치",
-            latitude = 37.5665,
-            longitude = 126.9780
-        )
-    }
 }

@@ -31,4 +31,10 @@ class LocationSelectionTest {
     @Test fun comparableFreshFixesUseAccuracy() {
         assertEquals(0, LocationSelection.fixIndex(listOf(LocationFix(59_000_000_000L, 3f), LocationFix(60_000_000_000L, 20f)), 61_000_000_000L))
     }
+    @Test fun quickFixAcceptsRecentAccurateLocationWithoutWaitingForGps() {
+        assertEquals(0, LocationSelection.quickFixIndex(listOf(LocationFix(85_000_000_000L, 20f)), 100_000_000_000L))
+    }
+    @Test fun quickFixRejectsOldOrImpreciseLocation() {
+        assertNull(LocationSelection.quickFixIndex(listOf(LocationFix(60_000_000_000L, 20f), LocationFix(95_000_000_000L, 250f)), 100_000_000_000L))
+    }
 }

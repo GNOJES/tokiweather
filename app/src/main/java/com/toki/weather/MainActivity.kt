@@ -1,10 +1,13 @@
 package com.toki.weather
 
 import android.content.Intent
+import android.Manifest
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
@@ -50,6 +53,7 @@ import com.toki.weather.widget.TokiWeatherWidget
 import com.toki.weather.widget.TokiWeatherWidgetLarge
 import com.toki.weather.worker.refreshAndUpdate
 import com.toki.weather.worker.WeatherWorkScheduler
+import com.toki.weather.util.LocationHelper
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -129,10 +133,29 @@ fun MainScreen(
         }
     }
 
-    androidx.compose.runtime.LaunchedEffect(loadedWeather?.lastUpdated) {
-        if (loadedWeather?.lastUpdated == 0L && !initialRefreshAttempted) {
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        ) refreshWeather()
+        else Toast.makeText(context, "현재 동네 날씨를 보려면 위치 권한이 필요합니다.", Toast.LENGTH_SHORT).show()
+    }
+    val refreshWithPermission: () -> Unit = {
+        if (LocationHelper.hasLocationPermission(context)) refreshWeather()
+        else locationPermissionLauncher.launch(arrayOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ))
+    }
+
+    androidx.compose.runtime.LaunchedEffect(loadedWeather?.lastUpdated, loadedWeather?.locationName) {
+        if (loadedWeather != null &&
+            (loadedWeather?.lastUpdated == 0L || loadedWeather?.locationName == "설정 위치") &&
+            !initialRefreshAttempted
+        ) {
             initialRefreshAttempted = true
-            refreshWeather()
+            refreshWithPermission()
         }
     }
 
@@ -204,7 +227,7 @@ fun MainScreen(
                 0 -> WeatherPlaceholderScreen(
                     weather = cachedWeather,
                     isRefreshing = isRefreshing,
-                    onRefresh = refreshWeather,
+                    onRefresh = refreshWithPermission,
                     hourlyIntervalHours = hourlyIntervalHours,
                     onHourlyIntervalSelected = { hours ->
                         coroutineScope.launch { dataStore.saveHourlyInterval(hours) }

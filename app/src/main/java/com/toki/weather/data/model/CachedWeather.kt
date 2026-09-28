@@ -6,7 +6,7 @@ import androidx.compose.ui.graphics.Color
  * 위젯에 표시할 날씨 및 대기질 데이터 모델
  */
 data class CachedWeather(
-    val locationName: String = "설정 위치",
+    val locationName: String = "위치 확인 중",
     val currentTemp: Int,
     val currentCondition: WeatherCondition,
     val currentHumidity: Int? = null,
