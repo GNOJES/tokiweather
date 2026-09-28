@@ -5,7 +5,6 @@ import android.util.Log
 import com.toki.weather.BuildConfig
 import com.toki.weather.data.cache.WeatherDataStore
 import com.toki.weather.data.model.CachedWeather
-import com.toki.weather.data.model.WeatherCondition
 import com.toki.weather.data.remote.KmaResponse
 import com.toki.weather.data.remote.RetrofitClient
 import com.toki.weather.data.remote.forecastTemperature
@@ -17,6 +16,8 @@ import com.toki.weather.util.LocationHelper
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.firstOrNull
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 /**
  * 날씨 데이터 Repository
@@ -60,8 +61,9 @@ class WeatherRepository(private val context: Context) {
             val finalLocationName = if (customName.isNotBlank()) customName else locInfo.locationName
             Log.d(TAG, "Current location: $finalLocationName (GPS: ${locInfo.locationName}, custom: $customName, nx=${locInfo.nx}, ny=${locInfo.ny})")
 
-            // 1. 현재 기온 (초단기실황)
-            val (ncstDate, ncstTime) = DateTimeUtils.getUltraSrtNcstBaseDateTime()
+            // 1. 한 번 잡은 시각으로 모든 발표 시각과 예보 날짜를 계산한다.
+            val now = LocalDateTime.now()
+            val (ncstDate, ncstTime) = DateTimeUtils.getUltraSrtNcstBaseDateTime(now)
             val ncstResponse = api.getUltraSrtNcst(
                 serviceKey = serviceKey,
                 baseDate = ncstDate,
@@ -71,7 +73,7 @@ class WeatherRepository(private val context: Context) {
             )
 
             // 2. 단기예보 (내일/모레 TMN, TMX, SKY, PTY)
-            val (fcstDate, fcstTime) = DateTimeUtils.getVilageFcstBaseDateTime()
+            val (fcstDate, fcstTime) = DateTimeUtils.getVilageFcstBaseDateTime(now)
             val fcstResponse = api.getVilageFcst(
                 serviceKey = serviceKey,
                 baseDate = fcstDate,
@@ -80,11 +82,33 @@ class WeatherRepository(private val context: Context) {
                 ny = locInfo.ny
             )
 
+            // 새 발표가 자정 등 미래 시각부터 시작하면 현재 시각의 SKY가 빠질 수 있다.
+            // 직전 발표의 현재 시각 예보만 보완하고, 실패해도 나머지 갱신은 유지한다.
+            val latestItems = requireKmaItems(fcstResponse)
+            val currentDate = now.format(DateTimeFormatter.BASIC_ISO_DATE)
+            val currentHour = String.format("%02d00", now.hour)
+            val previousIssueItems = if (selectCurrentForecastMoment(latestItems, currentDate, currentHour).sky == null) {
+                val (previousDate, previousTime) = DateTimeUtils.getPreviousVilageFcstBaseDateTime(now)
+                try {
+                    requireKmaItems(api.getVilageFcst(
+                        serviceKey = serviceKey,
+                        baseDate = previousDate,
+                        baseTime = previousTime,
+                        nx = locInfo.nx,
+                        ny = locInfo.ny
+                    ))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "Previous short-term forecast unavailable: ${e.javaClass.simpleName}")
+                    emptyList()
+                }
+            } else emptyList()
+
             // 초단기예보는 가까운 6시간의 날씨와 강수확률을 보완한다.
             // 일시적으로 실패해도 단기예보만으로 갱신을 계속한다.
-            val ultraNow = java.time.LocalDateTime.now()
             var ultraFcstResponse: KmaResponse? = null
-            for (candidate in listOf(ultraNow, ultraNow.minusHours(1))) {
+            for (candidate in listOf(now, now.minusHours(1))) {
                 val (ultraDate, ultraTime) = DateTimeUtils.getUltraSrtFcstBaseDateTime(candidate)
                 try {
                     val response = api.getUltraSrtFcst(
@@ -105,7 +129,7 @@ class WeatherRepository(private val context: Context) {
             }
 
             // 3. 필수 날씨 응답을 먼저 검증한다. 오류 응답은 캐시에 쓰지 않는다.
-            val forecast = parseWeather(finalLocationName, ncstResponse, fcstResponse, ultraFcstResponse)
+            val forecast = parseWeather(finalLocationName, ncstResponse, latestItems, previousIssueItems, ultraFcstResponse, now)
 
             // 4. 실시간 대기질 (미세먼지 PM10, 초미세먼지 PM2.5) 조회
             val airLatitude = locInfo.latitude ?: 37.5665
@@ -140,11 +164,12 @@ class WeatherRepository(private val context: Context) {
     private fun parseWeather(
         locationName: String,
         ncstResponse: KmaResponse,
-        fcstResponse: KmaResponse,
-        ultraFcstResponse: KmaResponse?
+        fcstItems: List<KmaResponse.Item>,
+        previousIssueItems: List<KmaResponse.Item>,
+        ultraFcstResponse: KmaResponse?,
+        now: LocalDateTime
     ): CachedWeather {
         val ncstItems = requireKmaItems(ncstResponse)
-        val fcstItems = requireKmaItems(fcstResponse)
 
         // --- 현재 기온 ---
         val currentTemp = requireCurrentTemperature(ncstItems)
@@ -155,10 +180,10 @@ class WeatherRepository(private val context: Context) {
             .firstOrNull { it.category == "PTY" }
             ?.value?.toIntOrNull() ?: 0
         // 초단기실황에는 SKY/POP가 없으므로 현재 시간대의 단기예보를 사용한다.
-        val todayStr = DateTimeUtils.todayString()
-        val currentHour = String.format("%02d00", java.time.LocalDateTime.now().hour)
-        val currentForecast = selectCurrentForecastMoment(fcstItems, todayStr, currentHour)
-        val currentCondition = WeatherCondition.fromCodes(currentPty, currentForecast.sky ?: -1)
+        val todayStr = now.format(DateTimeFormatter.BASIC_ISO_DATE)
+        val currentHour = String.format("%02d00", now.hour)
+        val currentForecast = selectCurrentForecastMoment(fcstItems, todayStr, currentHour, previousIssueItems)
+        val currentCondition = requireResolvedCurrentCondition(currentPty, currentForecast.sky)
         val todayForecast = selectDailyForecast(fcstItems, todayStr, currentHour)
         val shortTermHourly = selectHourlyForecast(fcstItems, todayStr, currentHour)
         val ultraItems = ultraFcstResponse?.let { response ->
@@ -170,22 +195,20 @@ class WeatherRepository(private val context: Context) {
         } else fcstItems.firstOrNull()?.baseTime
 
         // --- 내일 날씨 ---
-        val tomorrowStr = DateTimeUtils.tomorrowString()
+        val tomorrowStr = now.plusDays(1).format(DateTimeFormatter.BASIC_ISO_DATE)
         val tomorrowMin = forecastTemperature(fcstItems, tomorrowStr, "TMN")
         val tomorrowMax = forecastTemperature(fcstItems, tomorrowStr, "TMX")
         val tomorrowForecast = selectDailyForecast(fcstItems, tomorrowStr, "0000")
 
         // --- 모레 날씨 ---
-        val dayAfterStr = DateTimeUtils.dayAfterTomorrowString()
+        val dayAfterStr = now.plusDays(2).format(DateTimeFormatter.BASIC_ISO_DATE)
         val dayAfterMin = forecastTemperature(fcstItems, dayAfterStr, "TMN")
         val dayAfterMax = forecastTemperature(fcstItems, dayAfterStr, "TMX")
         val dayAfterForecast = selectDailyForecast(fcstItems, dayAfterStr, "0000")
 
         val halfDayForecasts = listOf(todayStr, tomorrowStr, dayAfterStr).flatMap { date ->
-            listOf(
-                selectHalfDayForecast(fcstItems, date, "0600", "1200"),
-                selectHalfDayForecast(fcstItems, date, "1200", "1800")
-            )
+            val (morning, afternoon) = selectDailyHalfDays(fcstItems, date)
+            listOf(morning, afternoon)
         }
 
         return CachedWeather(

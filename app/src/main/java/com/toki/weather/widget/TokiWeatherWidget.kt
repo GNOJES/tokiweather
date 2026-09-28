@@ -45,7 +45,10 @@ import com.toki.weather.R
 import com.toki.weather.data.cache.WeatherDataStore
 import com.toki.weather.data.model.CachedWeather
 import com.toki.weather.data.model.WidgetThemeConfig
+import com.toki.weather.util.currentWeatherIconRes
 import kotlinx.coroutines.flow.first
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 /**
  * 토끼날씨 2×1 위젯
@@ -172,7 +175,12 @@ private fun WeatherWidgetContent(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Image(
-                        provider = ImageProvider(weather.currentCondition.iconRes),
+                        provider = ImageProvider(currentWeatherIconRes(
+                            weather.currentCondition,
+                            LocalDateTime.now(ZoneId.of("Asia/Seoul")),
+                            weather.airQualityLatitude ?: 37.5665,
+                            weather.airQualityLongitude ?: 126.9780
+                        )),
                         contentDescription = "현재 날씨 ${weather.currentCondition.label}",
                         modifier = GlanceModifier.size(todayIconSize)
                     )

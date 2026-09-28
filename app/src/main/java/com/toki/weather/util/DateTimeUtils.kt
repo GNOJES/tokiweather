@@ -72,6 +72,10 @@ object DateTimeUtils {
         return Pair(baseDate, baseTime)
     }
 
+    /** 최신 발표에 현재 시각 예보가 없을 때 조회할 직전 단기예보 발표 시각. */
+    fun getPreviousVilageFcstBaseDateTime(now: LocalDateTime = LocalDateTime.now()): Pair<String, String> =
+        getVilageFcstBaseDateTime(now.minusHours(3))
+
     /**
      * 오늘 날짜 문자열 (YYYYMMDD)
      */

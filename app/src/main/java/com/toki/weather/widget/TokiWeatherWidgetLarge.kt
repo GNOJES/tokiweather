@@ -45,7 +45,10 @@ import com.toki.weather.data.cache.WeatherDataStore
 import com.toki.weather.data.model.CachedWeather
 import com.toki.weather.data.model.WidgetThemeConfig
 import com.toki.weather.util.DateTimeUtils
+import com.toki.weather.util.currentWeatherIconRes
 import kotlinx.coroutines.flow.first
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 /**
  * 3×2 대형 위젯 (노바런처 8×8 등 세로 공간이 있는 홈 화면 전용)
@@ -198,7 +201,12 @@ private fun LargeWidgetLayout(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Image(
-                        provider = ImageProvider(weather.currentCondition.iconRes),
+                        provider = ImageProvider(currentWeatherIconRes(
+                            weather.currentCondition,
+                            LocalDateTime.now(ZoneId.of("Asia/Seoul")),
+                            weather.airQualityLatitude ?: 37.5665,
+                            weather.airQualityLongitude ?: 126.9780
+                        )),
                         contentDescription = "현재 날씨 ${weather.currentCondition.label}",
                         modifier = GlanceModifier.size(todayIconSize)
                     )

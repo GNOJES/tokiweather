@@ -1,6 +1,7 @@
 package com.toki.weather.ui.screen
 
 import com.toki.weather.data.model.formatTemperatureRange
+import com.toki.weather.data.model.asTemperature
 
 import android.content.Intent
 import android.net.Uri
@@ -52,7 +53,7 @@ import com.toki.weather.data.model.WeatherCondition
 import com.toki.weather.data.repository.ThreeHourForecast
 import com.toki.weather.data.repository.summarizeThreeHours
 import com.toki.weather.util.DateTimeUtils
-import com.toki.weather.util.SolarTime
+import com.toki.weather.util.currentWeatherIconRes
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -406,12 +407,8 @@ private fun weatherIconRes(
     latitude: Double,
     longitude: Double
 ): Int {
-    if (dateTime == null || !SolarTime.isNight(dateTime, latitude, longitude)) return condition.iconRes
-    return when (condition) {
-        WeatherCondition.CLEAR -> R.drawable.ic_weather_clear_night
-        WeatherCondition.CLOUDY -> R.drawable.ic_weather_cloudy_night
-        else -> condition.iconRes
-    }
+    return dateTime?.let { currentWeatherIconRes(condition, it, latitude, longitude) }
+        ?: condition.iconRes
 }
 
 @Composable
@@ -452,7 +449,7 @@ private fun HalfDayForecastCell(label: String, forecast: HalfDayForecast?, modif
             Spacer(modifier = Modifier.size(33.dp))
         }
         Text(
-            forecast?.let { formatTemperatureRange(it.minTemp, it.maxTemp) } ?: "자료 없음",
+            forecast?.let { (it.minTemp ?: it.maxTemp).asTemperature() } ?: "자료 없음",
             fontSize = 11.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1

@@ -4,24 +4,42 @@ import com.toki.weather.data.model.WeatherCondition
 import com.toki.weather.data.model.HalfDayForecast
 import com.toki.weather.data.model.HourlyForecast
 import com.toki.weather.data.remote.KmaResponse
+import com.toki.weather.data.remote.forecastTemperature
 
 data class ForecastMoment(val sky: Int?, val pop: Int?)
 
 data class DailyForecast(val condition: WeatherCondition, val pop: Int)
 
+fun selectDailyHalfDays(items: List<KmaResponse.Item>, date: String): Pair<HalfDayForecast?, HalfDayForecast?> {
+    val morning = selectHalfDayForecast(items, date, "0000", "1200")?.let {
+        it.copy(minTemp = forecastTemperature(items, date, "TMN") ?: it.minTemp, maxTemp = null)
+    }
+    val afternoon = selectHalfDayForecast(items, date, "1200", "2400")?.let {
+        it.copy(minTemp = null, maxTemp = forecastTemperature(items, date, "TMX") ?: it.maxTemp)
+    }
+    return morning to afternoon
+}
+
+fun requireResolvedCurrentCondition(pty: Int, sky: Int?): WeatherCondition =
+    WeatherCondition.fromCodes(pty, sky ?: -1).also {
+        check(it != WeatherCondition.UNKNOWN) { "KMA response has no valid current weather condition" }
+    }
+
 /** 현재 시각에 해당하는 단기예보의 하늘상태와 강수확률을 찾는다. */
 fun selectCurrentForecastMoment(
     items: List<KmaResponse.Item>,
     date: String,
-    currentHour: String
+    currentHour: String,
+    previousIssueItems: List<KmaResponse.Item> = emptyList()
 ): ForecastMoment {
     fun valueAtCurrentHour(category: String): Int? {
-        val candidates = items.filter {
-            it.category == category && it.fcstDate == date && it.fcstTime != null
+        fun latestValue(source: List<KmaResponse.Item>): Int? = source.filter {
+            it.category == category && it.fcstDate == date &&
+                it.fcstTime != null && it.fcstTime <= currentHour
         }
-        val current = candidates.filter { it.fcstTime!! <= currentHour }
             .maxByOrNull { it.fcstTime!! }
-        return (current ?: candidates.minByOrNull { it.fcstTime!! })?.fcstValue?.toIntOrNull()
+            ?.fcstValue?.toIntOrNull()
+        return latestValue(items) ?: latestValue(previousIssueItems)
     }
     return ForecastMoment(
         sky = valueAtCurrentHour("SKY"),

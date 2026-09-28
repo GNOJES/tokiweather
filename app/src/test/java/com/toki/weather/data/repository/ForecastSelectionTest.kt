@@ -5,10 +5,46 @@ import com.toki.weather.data.model.HalfDayForecast
 import com.toki.weather.data.model.HourlyForecast
 import com.toki.weather.data.remote.KmaResponse
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class ForecastSelectionTest {
     private val date = "20260925"
+
+    @Test
+    fun afternoonDailyForecastIncludesEveningRain() {
+        val items = listOf(
+            item("SKY", "1500", "1"), item("PTY", "1500", "0"), item("POP", "1500", "0"),
+            item("SKY", "2100", "4"), item("PTY", "2100", "1"), item("POP", "2100", "60")
+        )
+
+        val afternoon = selectDailyHalfDays(items, date).second
+        assertEquals(WeatherCondition.RAIN, afternoon?.condition)
+        assertEquals(60, afternoon?.pop)
+    }
+
+    @Test
+    fun dailyTemperatureUsesOfficialMorningLowAndAfternoonHigh() {
+        val items = listOf(
+            item("SKY", "0600", "1"), item("POP", "0600", "0"), item("TMP", "0600", "16"),
+            item("TMN", "0600", "15.0"),
+            item("SKY", "1500", "1"), item("POP", "1500", "0"), item("TMP", "1500", "26"),
+            item("TMX", "1500", "27.0")
+        )
+
+        val (morning, afternoon) = selectDailyHalfDays(items, date)
+        assertEquals(15, morning?.minTemp)
+        assertEquals(null, morning?.maxTemp)
+        assertEquals(null, afternoon?.minTemp)
+        assertEquals(27, afternoon?.maxTemp)
+    }
+
+    @Test
+    fun unavailableCurrentSkyCannotBecomeSavedUnknownWeather() {
+        assertThrows(IllegalStateException::class.java) {
+            requireResolvedCurrentCondition(0, null)
+        }
+    }
 
     @Test
     fun currentConditionsUseCurrentHourNotLaterDailyRain() {
@@ -22,6 +58,28 @@ class ForecastSelectionTest {
         assertEquals(ForecastMoment(sky = 4, pop = 30), selectCurrentForecastMoment(items, date, "1200"))
         assertEquals(ForecastMoment(sky = 4, pop = 60), selectCurrentForecastMoment(items, date, "1800"))
         assertEquals(DailyForecast(WeatherCondition.RAIN, 60), selectDailyForecast(items, date, "0000"))
+    }
+
+    @Test
+    fun currentSkyUsesPreviousIssueWhenLatestIssueStartsTomorrow() {
+        val latest = listOf(item("SKY", "0000", "3", "20260926"))
+        val previous = listOf(item("SKY", "2300", "1"), item("POP", "2300", "0"))
+
+        assertEquals(
+            ForecastMoment(sky = 1, pop = 0),
+            selectCurrentForecastMoment(latest, date, "2300", previous)
+        )
+    }
+
+    @Test
+    fun currentSkyPrefersPreviousIssueOverFutureHourInLatestIssue() {
+        val latest = listOf(item("SKY", "0600", "3"))
+        val previous = listOf(item("SKY", "0500", "1"))
+
+        assertEquals(
+            ForecastMoment(sky = 1, pop = null),
+            selectCurrentForecastMoment(latest, date, "0500", previous)
+        )
     }
 
     @Test

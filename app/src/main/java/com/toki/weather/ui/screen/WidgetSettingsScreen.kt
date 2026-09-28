@@ -56,6 +56,7 @@ import com.toki.weather.data.model.WidgetThemeConfig
 import com.toki.weather.data.repository.WeatherRepository
 import com.toki.weather.util.DateTimeUtils
 import com.toki.weather.util.LocationHelper
+import com.toki.weather.util.currentWeatherIconRes
 import com.toki.weather.widget.TokiWeatherWidget
 import com.toki.weather.widget.TokiWeatherWidgetLarge
 import com.toki.weather.worker.WeatherWorkScheduler
@@ -64,6 +65,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 enum class WidgetPreset(
     val title: String,
@@ -815,6 +818,12 @@ fun WidgetPreviewBox(
         }
 
         val currentCondition = if (weather.lastUpdated > 0) weather.currentCondition else WeatherCondition.CLEAR
+        val currentIconRes = currentWeatherIconRes(
+            currentCondition,
+            LocalDateTime.now(ZoneId.of("Asia/Seoul")),
+            weather.airQualityLatitude ?: 37.5665,
+            weather.airQualityLongitude ?: 126.9780
+        )
         val tomorrowCondition = if (weather.lastUpdated > 0) weather.tomorrowCondition else WeatherCondition.OVERCAST
         val dayAfterCondition = if (weather.lastUpdated > 0) weather.dayAfterCondition else WeatherCondition.CLOUDY
 
@@ -876,7 +885,7 @@ fun WidgetPreviewBox(
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Image(
-                                    painter = painterResource(currentCondition.iconRes),
+                                    painter = painterResource(currentIconRes),
                                     contentDescription = currentCondition.label,
                                     modifier = Modifier.size(todayIconSize)
                                 )
@@ -1051,7 +1060,7 @@ fun WidgetPreviewBox(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Image(
-                                    painter = painterResource(currentCondition.iconRes),
+                                    painter = painterResource(currentIconRes),
                                     contentDescription = currentCondition.label,
                                     modifier = Modifier.size(57.dp)
                                 )

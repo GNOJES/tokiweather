@@ -15,4 +15,15 @@ class DateTimeUtilsTest {
             DateTimeUtils.getUltraSrtFcstBaseDateTime(LocalDateTime.of(2026, 9, 26, 19, 18))
         )
     }
+
+    @Test fun previousShortTermIssueCrossesMidnightCorrectly() {
+        assertEquals(
+            "20260926" to "2000",
+            DateTimeUtils.getPreviousVilageFcstBaseDateTime(LocalDateTime.of(2026, 9, 26, 23, 30))
+        )
+        assertEquals(
+            "20260926" to "2300",
+            DateTimeUtils.getPreviousVilageFcstBaseDateTime(LocalDateTime.of(2026, 9, 27, 2, 20))
+        )
+    }
 }
