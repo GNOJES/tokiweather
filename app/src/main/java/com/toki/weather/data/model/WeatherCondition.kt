@@ -25,16 +25,17 @@ enum class WeatherCondition(
     companion object {
         /**
          * PTY(강수형태)와 SKY(하늘상태) 코드로 날씨 상태 결정
-         * @param pty 강수형태 코드 (0:없음, 1:비, 2:비/눈, 3:눈, 4:소나기)
+         * @param pty 강수형태 코드 (0:없음, 1:비, 2:비/눈, 3:눈, 4:소나기,
+         * 5:빗방울, 6:빗방울눈날림, 7:눈날림)
          * @param sky 하늘상태 코드 (1:맑음, 3:구름많음, 4:흐림)
          */
         fun fromCodes(pty: Int, sky: Int): WeatherCondition {
             // 강수형태가 있으면 우선
             if (pty > 0) {
                 return when (pty) {
-                    1 -> RAIN
-                    2 -> SLEET
-                    3 -> SNOW
+                    1, 5 -> RAIN
+                    2, 6 -> SLEET
+                    3, 7 -> SNOW
                     4 -> SHOWER
                     else -> UNKNOWN
                 }

@@ -47,6 +47,7 @@ interface KmaApiService {
         @Query("nx") nx: Int,
         @Query("ny") ny: Int,
         @Query("dataType") dataType: String = "JSON",
-        @Query("numOfRows") numOfRows: Int = 1000
+        @Query("numOfRows") numOfRows: Int = 1000,
+        @Query("pageNo") pageNo: Int = 1
     ): KmaResponse
 }

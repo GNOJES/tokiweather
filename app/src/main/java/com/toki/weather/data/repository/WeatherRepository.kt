@@ -8,6 +8,7 @@ import com.toki.weather.data.model.CachedWeather
 import com.toki.weather.data.remote.KmaResponse
 import com.toki.weather.data.remote.RetrofitClient
 import com.toki.weather.data.remote.forecastTemperature
+import com.toki.weather.data.remote.fetchAllKmaItems
 import com.toki.weather.data.remote.currentHumidity
 import com.toki.weather.data.remote.requireCurrentTemperature
 import com.toki.weather.data.remote.requireKmaItems
@@ -74,29 +75,16 @@ class WeatherRepository(private val context: Context) {
 
             // 2. 단기예보 (내일/모레 TMN, TMX, SKY, PTY)
             val (fcstDate, fcstTime) = DateTimeUtils.getVilageFcstBaseDateTime(now)
-            val fcstResponse = api.getVilageFcst(
-                serviceKey = serviceKey,
-                baseDate = fcstDate,
-                baseTime = fcstTime,
-                nx = locInfo.nx,
-                ny = locInfo.ny
-            )
+            val latestItems = fetchVilageItems(fcstDate, fcstTime, locInfo.nx, locInfo.ny)
 
             // 새 발표가 자정 등 미래 시각부터 시작하면 현재 시각의 SKY가 빠질 수 있다.
             // 직전 발표의 현재 시각 예보만 보완하고, 실패해도 나머지 갱신은 유지한다.
-            val latestItems = requireKmaItems(fcstResponse)
             val currentDate = now.format(DateTimeFormatter.BASIC_ISO_DATE)
             val currentHour = String.format("%02d00", now.hour)
             val previousIssueItems = if (selectCurrentForecastMoment(latestItems, currentDate, currentHour).sky == null) {
                 val (previousDate, previousTime) = DateTimeUtils.getPreviousVilageFcstBaseDateTime(now)
                 try {
-                    requireKmaItems(api.getVilageFcst(
-                        serviceKey = serviceKey,
-                        baseDate = previousDate,
-                        baseTime = previousTime,
-                        nx = locInfo.nx,
-                        ny = locInfo.ny
-                    ))
+                    fetchVilageItems(previousDate, previousTime, locInfo.nx, locInfo.ny)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -158,9 +146,15 @@ class WeatherRepository(private val context: Context) {
         }
     }
 
-    /**
-     * API 응답에서 위젯에 필요한 데이터 추출
-     */
+    private suspend fun fetchVilageItems(date: String, time: String, nx: Int, ny: Int) =
+        fetchAllKmaItems { page ->
+            api.getVilageFcst(
+                serviceKey = serviceKey, baseDate = date, baseTime = time,
+                nx = nx, ny = ny, pageNo = page
+            )
+        }
+
+    /** API 응답에서 위젯에 필요한 데이터 추출 */
     private fun parseWeather(
         locationName: String,
         ncstResponse: KmaResponse,
