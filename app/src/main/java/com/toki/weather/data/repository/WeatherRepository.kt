@@ -174,6 +174,9 @@ class WeatherRepository(private val context: Context) {
         // --- 현재 기온 ---
         val currentTemp = requireCurrentTemperature(ncstItems)
         val humidity = currentHumidity(ncstItems)
+        val observedTemperature = ncstItems.firstOrNull { it.category == "T1H" }?.value?.toDoubleOrNull()
+        val windSpeed = ncstItems.firstOrNull { it.category == "WSD" }?.value?.toDoubleOrNull()
+        val feelsLike = apparentTemperatureCelsius(observedTemperature, humidity, windSpeed)
 
         // --- 현재 날씨 상태 ---
         val currentPty = ncstItems
@@ -216,6 +219,7 @@ class WeatherRepository(private val context: Context) {
             currentTemp = currentTemp,
             currentCondition = currentCondition,
             currentHumidity = humidity,
+            currentFeelsLike = feelsLike,
             todayPop = hourlyForecasts.filter { it.date == todayStr }
                 .mapNotNull { it.pop }.maxOrNull() ?: todayForecast.pop,
             hourlyForecasts = hourlyForecasts,

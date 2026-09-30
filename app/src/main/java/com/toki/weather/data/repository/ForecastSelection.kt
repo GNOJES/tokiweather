@@ -80,30 +80,32 @@ data class ThreeHourForecast(
     val condition: WeatherCondition,
     val minTemp: Int?,
     val maxTemp: Int?,
-    val pop: Int?
+    val pop: Int?,
+    val precipitation: String? = null
 )
 
-/** 현재 시각 이후의 SKY/PTY/TMP/POP를 시각별로 묶어 시간 순서로 반환한다. */
+/** 현재 시각 이후의 SKY/PTY/TMP/POP/PCP를 시각별로 묶어 시간 순서로 반환한다. */
 fun selectHourlyForecast(
     items: List<KmaResponse.Item>,
     currentDate: String,
     currentHour: String
 ): List<HourlyForecast> = items
     .filter {
-        it.category in setOf("SKY", "PTY", "TMP", "POP") &&
+        it.category in setOf("SKY", "PTY", "TMP", "POP", "PCP") &&
             it.fcstDate != null && it.fcstTime != null &&
             it.fcstDate + it.fcstTime >= currentDate + currentHour
     }
     .groupBy { it.fcstDate!! to it.fcstTime!! }
     .toSortedMap(compareBy<Pair<String, String>> { it.first }.thenBy { it.second })
     .map { (dateTime, values) ->
-        val byCategory = values.associate { it.category to it.fcstValue?.toIntOrNull() }
+        val byCategory = values.associate { it.category to it.fcstValue }
         HourlyForecast(
             date = dateTime.first,
             time = dateTime.second,
-            condition = WeatherCondition.fromCodes(byCategory["PTY"] ?: 0, byCategory["SKY"] ?: -1),
-            temperature = byCategory["TMP"],
-            pop = byCategory["POP"]
+            condition = WeatherCondition.fromCodes(byCategory["PTY"]?.toIntOrNull() ?: 0, byCategory["SKY"]?.toIntOrNull() ?: -1),
+            temperature = byCategory["TMP"]?.toDoubleOrNull()?.toInt(),
+            pop = byCategory["POP"]?.toIntOrNull(),
+            precipitation = byCategory["PCP"]
         )
     }
 
@@ -124,7 +126,8 @@ fun mergeUltraShortForecast(
                 WeatherCondition.fromCodes(pty ?: 0, sky ?: -1)
             } else short.condition,
             temperature = values["T1H"]?.toDoubleOrNull()?.toInt() ?: short.temperature,
-            pop = values["POP"]?.toIntOrNull() ?: short.pop
+            pop = values["POP"]?.toIntOrNull() ?: short.pop,
+            precipitation = values["RN1"] ?: short.precipitation
         )
     }
 }
@@ -147,7 +150,8 @@ fun summarizeThreeHours(hourly: List<HourlyForecast>): List<ThreeHourForecast> =
             condition = peak.condition,
             minTemp = temperatures.minOrNull(),
             maxTemp = temperatures.maxOrNull(),
-            pop = sorted.mapNotNull { it.pop }.maxOrNull()
+            pop = sorted.mapNotNull { it.pop }.maxOrNull(),
+            precipitation = summarizeRainfall(sorted.map { it.precipitation })
         )
     }
 
@@ -164,12 +168,18 @@ fun selectHalfDayForecast(
     if (periodItems.isEmpty()) return null
     val temperatures = periodItems.filter { it.category == "TMP" }
         .mapNotNull { it.fcstValue?.toDoubleOrNull()?.toInt() }
+    val rainfallByTime = periodItems.filter { it.category == "PCP" }
+        .associate { it.fcstTime to it.fcstValue }
+    val forecastTimes = periodItems.filter { it.category in setOf("SKY", "PTY", "TMP", "POP") }
+        .mapNotNull { it.fcstTime }.distinct().sorted()
+    val precipitation = summarizeRainfall(forecastTimes.map { rainfallByTime[it] })
     val summary = selectDailyForecast(periodItems, date, startTime)
     return HalfDayForecast(
         condition = summary.condition,
         minTemp = temperatures.minOrNull(),
         maxTemp = temperatures.maxOrNull(),
         pop = periodItems.filter { it.category == "POP" }
-            .mapNotNull { it.fcstValue?.toIntOrNull() }.maxOrNull()
+            .mapNotNull { it.fcstValue?.toIntOrNull() }.maxOrNull(),
+        precipitation = precipitation.takeUnless { it == "—" }
     )
 }

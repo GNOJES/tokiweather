@@ -36,13 +36,19 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.toki.weather.R
@@ -51,6 +57,7 @@ import com.toki.weather.data.model.HalfDayForecast
 import com.toki.weather.data.model.HourlyForecast
 import com.toki.weather.data.model.WeatherCondition
 import com.toki.weather.data.repository.ThreeHourForecast
+import com.toki.weather.data.repository.formatHourlyRainfall
 import com.toki.weather.data.repository.summarizeThreeHours
 import com.toki.weather.util.DateTimeUtils
 import com.toki.weather.util.currentWeatherIconRes
@@ -126,8 +133,9 @@ fun WeatherPlaceholderScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 16.dp)
+                .padding(top = 4.dp, bottom = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
             // ─── 1. 현재 날씨 ───
             Card(
@@ -140,7 +148,7 @@ fun WeatherPlaceholderScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 14.dp, horizontal = 20.dp),
+                        .padding(vertical = 12.dp, horizontal = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -166,6 +174,11 @@ fun WeatherPlaceholderScreen(
                                     modifier = Modifier.padding(bottom = 5.dp)
                                 )
                             }
+                            Text(
+                                text = "체감 ${weather.currentFeelsLike?.let { "$it°" } ?: "—"}",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = "습도 ${weather.currentHumidity?.let { "$it%" } ?: "—"}",
@@ -193,12 +206,14 @@ fun WeatherPlaceholderScreen(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
             ) {
-                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("기상청 시간별 예보", fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                        weather.hourlyForecastIssuedAt?.let {
-                            Text("$it 발표", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Spacer(modifier = Modifier.width(6.dp))
+                        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                            Text("기상청 시간별 예보", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            weather.hourlyForecastIssuedAt?.let {
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text("$it 발표", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                         listOf(3, 1).forEach { interval ->
                             val selected = hourlyIntervalHours == interval
@@ -218,21 +233,47 @@ fun WeatherPlaceholderScreen(
                     if (weather.hourlyForecasts.isEmpty()) {
                         Text("시간별 예보를 불러오는 중…", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     } else {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            if (hourlyIntervalHours == 3) {
-                                val periods = summarizeThreeHours(weather.hourlyForecasts)
-                                periods.forEachIndexed { index, item ->
-                                    if (index > 0 && periods[index - 1].date != item.date) ForecastDateDivider()
-                                    ThreeHourForecastCell(item, index == 0 || periods[index - 1].date != item.date, latitude, longitude)
+                        val forecastScroll = rememberScrollState()
+                        LaunchedEffect(hourlyIntervalHours) { forecastScroll.scrollTo(0) }
+                        val threeHourPeriods = if (hourlyIntervalHours == 3) summarizeThreeHours(weather.hourlyForecasts) else emptyList()
+                        val dates = if (hourlyIntervalHours == 3) threeHourPeriods.map { it.date } else weather.hourlyForecasts.map { it.date }
+                        val density = LocalDensity.current
+                        val cellWidth = if (hourlyIntervalHours == 3) 64.dp else 48.dp
+                        val cellWidthPx = with(density) { cellWidth.roundToPx() }
+                        val spacingPx = with(density) { 5.dp.roundToPx() }
+                        val dividerWidthPx = with(density) { 5.dp.roundToPx() }
+                        val headerWidthPx = with(density) { 34.dp.roundToPx() }
+                        val pinnedDate = stickyForecastDate(dates, forecastScroll.value, cellWidthPx, spacingPx, dividerWidthPx, headerWidthPx)
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().horizontalScroll(forecastScroll),
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                if (hourlyIntervalHours == 3) {
+                                    threeHourPeriods.forEachIndexed { index, item ->
+                                        val newDate = index > 0 && threeHourPeriods[index - 1].date != item.date
+                                        if (newDate) ForecastDateDivider()
+                                        ThreeHourForecastCell(item, newDate && item.date != pinnedDate?.date, latitude, longitude)
+                                    }
+                                } else {
+                                    weather.hourlyForecasts.forEachIndexed { index, item ->
+                                        val newDate = index > 0 && weather.hourlyForecasts[index - 1].date != item.date
+                                        if (newDate) ForecastDateDivider()
+                                        HourlyForecastCell(item, newDate && item.date != pinnedDate?.date, latitude, longitude)
+                                    }
                                 }
-                            } else {
-                                weather.hourlyForecasts.forEachIndexed { index, item ->
-                                    if (index > 0 && weather.hourlyForecasts[index - 1].date != item.date) ForecastDateDivider()
-                                    HourlyForecastCell(item, index == 0 || weather.hourlyForecasts[index - 1].date != item.date, latitude, longitude)
-                                }
+                            }
+                            pinnedDate?.let { pinned ->
+                                Text(
+                                    text = shortForecastDate(pinned.date),
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .width(cellWidth)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f).compositeOver(MaterialTheme.colorScheme.background))
+                                )
                             }
                         }
                     }
@@ -245,9 +286,7 @@ fun WeatherPlaceholderScreen(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
             ) {
-                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)) {
-                    Text("기상청 일별 예보", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.height(3.dp))
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -281,14 +320,14 @@ fun WeatherPlaceholderScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                 )
             ) {
-                Column(modifier = Modifier.padding(10.dp)) {
+                Column(modifier = Modifier.padding(8.dp)) {
                     Text(
                         text = "실시간 대기질 · 에어코리아",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
@@ -324,7 +363,7 @@ fun WeatherPlaceholderScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -370,8 +409,9 @@ fun WeatherPlaceholderScreen(
 private fun HourlyForecastCell(forecast: HourlyForecast, showDate: Boolean, latitude: Double, longitude: Double) {
     Column(modifier = Modifier.width(48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            if (showDate && forecast.date.length == 8) "${forecast.date.substring(4, 6).toInt()}/${forecast.date.substring(6, 8).toInt()}" else " ",
+            if (showDate) shortForecastDate(forecast.date) else " ",
             fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text("${forecast.time.take(2)}시", fontSize = 11.sp, fontWeight = FontWeight.Medium)
@@ -382,6 +422,7 @@ private fun HourlyForecastCell(forecast: HourlyForecast, showDate: Boolean, lati
         )
         Text(forecast.temperature?.let { "$it°" } ?: "—", fontSize = 13.sp, fontWeight = FontWeight.Bold)
         Text(forecast.pop?.let { "$it%" } ?: "—", fontSize = 11.sp, color = Color(0xFF4AA3FF))
+        Text(formatHourlyRainfall(forecast.precipitation), fontSize = 10.sp, color = Color(0xFF4AA3FF), maxLines = 1)
     }
 }
 
@@ -391,12 +432,15 @@ private fun ForecastDateDivider() {
         modifier = Modifier
             .padding(horizontal = 2.dp, vertical = 14.dp)
             .width(1.dp)
-            .height(68.dp)
+            .height(80.dp)
             .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f))
     )
 }
 
 private val forecastDateTimeFormat = DateTimeFormatter.ofPattern("yyyyMMddHHmm")
+
+private fun shortForecastDate(date: String): String =
+    if (date.length == 8) "${date.substring(4, 6).toIntOrNull() ?: 0}/${date.substring(6, 8).toIntOrNull() ?: 0}" else date
 
 private fun forecastDateTime(date: String, time: String): LocalDateTime? =
     runCatching { LocalDateTime.parse(date + time, forecastDateTimeFormat) }.getOrNull()
@@ -415,8 +459,9 @@ private fun weatherIconRes(
 private fun ThreeHourForecastCell(forecast: ThreeHourForecast, showDate: Boolean, latitude: Double, longitude: Double) {
     Column(modifier = Modifier.width(64.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
-            if (showDate && forecast.date.length == 8) "${forecast.date.substring(4, 6).toInt()}/${forecast.date.substring(6, 8).toInt()}" else " ",
+            if (showDate) shortForecastDate(forecast.date) else " ",
             fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text("${forecast.startTime.take(2)}시", fontSize = 11.sp, fontWeight = FontWeight.Medium)
@@ -432,13 +477,15 @@ private fun ThreeHourForecastCell(forecast: ThreeHourForecast, showDate: Boolean
         }
         Text(temperature, fontSize = 10.sp, fontWeight = FontWeight.Bold)
         Text(forecast.pop?.let { "$it%" } ?: "—", fontSize = 11.sp, color = Color(0xFF4AA3FF))
+        Text(forecast.precipitation ?: "—", fontSize = 10.sp, color = Color(0xFF4AA3FF), maxLines = 1)
     }
 }
 
 @Composable
 private fun HalfDayForecastCell(label: String, forecast: HalfDayForecast?, modifier: Modifier = Modifier) {
+    val compactTextStyle = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, fontSize = 11.sp, lineHeight = 12.sp, style = compactTextStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (forecast != null) {
             Image(
                 painter = painterResource(forecast.condition.iconRes),
@@ -451,10 +498,13 @@ private fun HalfDayForecastCell(label: String, forecast: HalfDayForecast?, modif
         Text(
             forecast?.let { (it.minTemp ?: it.maxTemp).asTemperature() } ?: "자료 없음",
             fontSize = 11.sp,
+            lineHeight = 12.sp,
+            style = compactTextStyle,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1
         )
-        Text(forecast?.pop?.let { "$it%" } ?: "—", fontSize = 11.sp, color = Color(0xFF4AA3FF))
+        Text(forecast?.pop?.let { "$it%" } ?: "—", fontSize = 11.sp, lineHeight = 12.sp, style = compactTextStyle, color = Color(0xFF4AA3FF))
+        Text(forecast?.precipitation ?: "—", fontSize = 10.sp, lineHeight = 11.sp, style = compactTextStyle, color = Color(0xFF4AA3FF), maxLines = 1)
     }
 }
 

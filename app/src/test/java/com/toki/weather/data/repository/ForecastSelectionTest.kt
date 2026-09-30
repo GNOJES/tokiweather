@@ -40,6 +40,23 @@ class ForecastSelectionTest {
     }
 
     @Test
+    fun halfDayRainfallSumsHourlyPcpAndKeepsMissingDataUnknown() {
+        val items = listOf(
+            item("SKY", "0600", "4"), item("POP", "0600", "60"), item("PCP", "0600", "1.0mm"),
+            item("SKY", "0700", "4"), item("POP", "0700", "60"), item("PCP", "0700", "2.5mm"),
+            item("SKY", "1200", "1"), item("POP", "1200", "0"), item("PCP", "1200", "강수없음"),
+            item("SKY", "1300", "1"), item("POP", "1300", "0"), item("PCP", "1300", "강수없음")
+        )
+
+        val (morning, afternoon) = selectDailyHalfDays(items, date)
+        assertEquals("3.5mm", morning?.precipitation)
+        assertEquals("-", afternoon?.precipitation)
+
+        val incomplete = items.filterNot { it.category == "PCP" && it.fcstTime == "0700" }
+        assertEquals(null, selectDailyHalfDays(incomplete, date).first?.precipitation)
+    }
+
+    @Test
     fun unavailableCurrentSkyCannotBecomeSavedUnknownWeather() {
         assertThrows(IllegalStateException::class.java) {
             requireResolvedCurrentCondition(0, null)
@@ -161,6 +178,23 @@ class ForecastSelectionTest {
     }
 
     @Test
+    fun hourlyRainfallComesFromPcpAndNearbyUltraRn1() {
+        val short = selectHourlyForecast(
+            listOf(
+                item("SKY", "1200", "1"), item("TMP", "1200", "20"), item("POP", "1200", "40"),
+                item("PCP", "1200", "2.0mm"),
+                item("SKY", "1300", "1"), item("PCP", "1300", "강수없음")
+            ), date, "1200"
+        )
+        assertEquals("2.0mm", short[0].precipitation)
+        assertEquals("강수없음", short[1].precipitation)
+
+        val merged = mergeUltraShortForecast(short, listOf(item("RN1", "1200", "1mm 미만")))
+        assertEquals("1mm 미만", merged[0].precipitation)
+        assertEquals("강수없음", merged[1].precipitation)
+    }
+
+    @Test
     fun nearTermUltraForecastOverridesShortTermWeatherAndProbability() {
         val short = listOf(
             HourlyForecast(date, "1200", WeatherCondition.CLEAR, 25, 0),
@@ -195,8 +229,8 @@ class ForecastSelectionTest {
 
         assertEquals(
             listOf(
-                ThreeHourForecast(date, "1200", "1400", WeatherCondition.RAIN, 25, 27, 60),
-                ThreeHourForecast(date, "1500", "1500", WeatherCondition.CLEAR, 26, 26, 0)
+                ThreeHourForecast(date, "1200", "1400", WeatherCondition.RAIN, 25, 27, 60, "—"),
+                ThreeHourForecast(date, "1500", "1500", WeatherCondition.CLEAR, 26, 26, 0, "—")
             ),
             summarizeThreeHours(hourly)
         )
@@ -212,8 +246,8 @@ class ForecastSelectionTest {
 
         assertEquals(
             listOf(
-                ThreeHourForecast(date, "1800", "2000", WeatherCondition.CLEAR, 21, 22, 0),
-                ThreeHourForecast(date, "2100", "2100", WeatherCondition.CLOUDY, 20, 20, 20)
+                ThreeHourForecast(date, "1800", "2000", WeatherCondition.CLEAR, 21, 22, 0, "—"),
+                ThreeHourForecast(date, "2100", "2100", WeatherCondition.CLOUDY, 20, 20, 20, "—")
             ),
             summarizeThreeHours(hourly)
         )

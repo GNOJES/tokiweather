@@ -6,5 +6,6 @@ data class HourlyForecast(
     val time: String,
     val condition: WeatherCondition,
     val temperature: Int?,
-    val pop: Int?
+    val pop: Int?,
+    val precipitation: String? = null // 기상청 PCP 또는 가까운 시간의 RN1
 )

@@ -10,6 +10,7 @@ data class CachedWeather(
     val currentTemp: Int,
     val currentCondition: WeatherCondition,
     val currentHumidity: Int? = null,
+    val currentFeelsLike: Int? = null,
     val todayPop: Int = 0,         // 오늘 남은 시간대 최대 강수확률 (%)
     val hourlyForecasts: List<HourlyForecast> = emptyList(),
     val hourlyForecastIssuedAt: String? = null,

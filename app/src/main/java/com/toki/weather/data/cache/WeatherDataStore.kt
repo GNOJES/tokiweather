@@ -36,6 +36,7 @@ class WeatherDataStore(private val context: Context) {
         private val KEY_CURRENT_TEMP = intPreferencesKey("current_temp")
         private val KEY_CURRENT_CONDITION = stringPreferencesKey("current_condition")
         private val KEY_CURRENT_HUMIDITY = intPreferencesKey("current_humidity")
+        private val KEY_CURRENT_FEELS_LIKE = intPreferencesKey("current_feels_like")
         private val KEY_TODAY_POP = intPreferencesKey("today_pop")
         private val KEY_HOURLY_FORECASTS = stringPreferencesKey("hourly_forecasts")
         private val KEY_HOURLY_FORECAST_ISSUED_AT = stringPreferencesKey("hourly_forecast_issued_at")
@@ -83,6 +84,7 @@ class WeatherDataStore(private val context: Context) {
                 try { WeatherCondition.valueOf(it) } catch (_: Exception) { WeatherCondition.UNKNOWN }
             } ?: WeatherCondition.UNKNOWN,
             currentHumidity = prefs[KEY_CURRENT_HUMIDITY],
+            currentFeelsLike = prefs[KEY_CURRENT_FEELS_LIKE],
             todayPop = prefs[KEY_TODAY_POP] ?: 0,
             hourlyForecasts = prefs[KEY_HOURLY_FORECASTS]?.let { json ->
                 runCatching {
@@ -150,6 +152,7 @@ class WeatherDataStore(private val context: Context) {
             prefs[KEY_CURRENT_TEMP] = weather.currentTemp
             prefs[KEY_CURRENT_CONDITION] = weather.currentCondition.name
             weather.currentHumidity?.let { prefs[KEY_CURRENT_HUMIDITY] = it } ?: prefs.remove(KEY_CURRENT_HUMIDITY)
+            weather.currentFeelsLike?.let { prefs[KEY_CURRENT_FEELS_LIKE] = it } ?: prefs.remove(KEY_CURRENT_FEELS_LIKE)
             prefs[KEY_TODAY_POP] = weather.todayPop
             prefs[KEY_HOURLY_FORECASTS] = Gson().toJson(weather.hourlyForecasts)
             weather.hourlyForecastIssuedAt?.let { prefs[KEY_HOURLY_FORECAST_ISSUED_AT] = it } ?: prefs.remove(KEY_HOURLY_FORECAST_ISSUED_AT)

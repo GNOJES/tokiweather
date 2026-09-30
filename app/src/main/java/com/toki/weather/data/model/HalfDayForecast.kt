@@ -5,5 +5,6 @@ data class HalfDayForecast(
     val condition: WeatherCondition,
     val minTemp: Int?,
     val maxTemp: Int?,
-    val pop: Int?
+    val pop: Int?,
+    val precipitation: String? = null
 )
