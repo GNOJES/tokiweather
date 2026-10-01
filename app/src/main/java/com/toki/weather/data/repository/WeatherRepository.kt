@@ -50,10 +50,18 @@ class WeatherRepository(private val context: Context) {
     /**
      * API에서 날씨 및 대기질 데이터를 가져와 캐시에 저장
      */
-    suspend fun fetchAndSave(): Result<CachedWeather> {
+    suspend fun fetchAndSave(allowSavedLocation: Boolean = false): Result<CachedWeather> {
         return try {
             // 0. GPS 기반 위치 및 지역 이름 획득
-            val locInfo = LocationHelper.getCurrentLocationInfo(context)
+            val locInfo = resolveWeatherRefreshLocation(
+                allowSavedLocation = allowSavedLocation,
+                currentLocation = { LocationHelper.getCurrentLocationInfo(context) },
+                savedLocation = {
+                    savedWeatherLocation(dataStore.weatherFlow.firstOrNull())?.also {
+                        Log.w(TAG, "Fresh location unavailable; refreshing last confirmed region")
+                    }
+                }
+            )
             val customName = try {
                 dataStore.customLocationNameFlow.firstOrNull()?.trim() ?: ""
             } catch (e: CancellationException) {

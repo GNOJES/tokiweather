@@ -8,7 +8,6 @@ import androidx.work.WorkerParameters
 import com.toki.weather.data.repository.WeatherRepository
 import com.toki.weather.widget.TokiWeatherWidget
 import com.toki.weather.widget.TokiWeatherWidgetLarge
-import kotlinx.coroutines.CancellationException
 
 /**
  * 백그라운드 날씨 데이터 업데이트 Worker
@@ -27,23 +26,23 @@ class WeatherUpdateWorker(
         Log.d(TAG, "Weather update started")
 
         val repo = WeatherRepository(applicationContext)
-        val result = repo.fetchAndSave()
-
-        return if (result.isSuccess) {
-            // 위젯 업데이트
-            try {
-                TokiWeatherWidget().updateAll(applicationContext)
-                TokiWeatherWidgetLarge().updateAll(applicationContext)
-                Log.d(TAG, "Weather update completed successfully")
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to update widget: ${e.javaClass.simpleName}")
-                return Result.retry()
-            }
+        val outcome = backgroundRefreshAndUpdate(
+            fetch = { repo.fetchAndSave(allowSavedLocation = true) },
+            updateWidgets = listOf(
+                { TokiWeatherWidget().updateAll(applicationContext) },
+                { TokiWeatherWidgetLarge().updateAll(applicationContext) }
+            )
+        )
+        outcome.fetchFailure?.let {
+            Log.e(TAG, "Weather fetch failed: ${it.javaClass.simpleName}")
+        }
+        outcome.widgetFailures.forEach {
+            Log.e(TAG, "Failed to update widget: ${it.javaClass.simpleName}")
+        }
+        return if (outcome.succeeded) {
+            Log.d(TAG, "Weather update completed successfully")
             Result.success()
         } else {
-            Log.e(TAG, "Weather fetch failed: ${result.exceptionOrNull()?.javaClass?.simpleName}")
             Result.retry()
         }
     }

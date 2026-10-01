@@ -47,6 +47,8 @@ import com.toki.weather.data.model.WidgetThemeConfig
 import com.toki.weather.util.DateTimeUtils
 import com.toki.weather.util.currentWeatherIconRes
 import kotlinx.coroutines.flow.first
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import java.time.LocalDateTime
 import java.time.ZoneId
 
@@ -67,8 +69,10 @@ class TokiWeatherWidgetLarge : GlanceAppWidget() {
         val fontScale = context.resources.configuration.fontScale.takeIf { it > 0f } ?: 1.0f
 
         provideContent {
+            val currentWeather by dataStore.weatherFlow.collectAsState(initial = weather)
+            val currentTheme by dataStore.themeFlow.collectAsState(initial = theme)
             GlanceTheme {
-                LargeWidgetLayout(weather, theme, fontScale)
+                LargeWidgetLayout(currentWeather, currentTheme, fontScale)
             }
         }
     }
