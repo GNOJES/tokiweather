@@ -145,7 +145,7 @@
 
 ## Pending work
 
-- 2026-10-01 오전 10시 위젯 달 아이콘 잔류 신고: S23의 위치 항상 허용, 백그라운드 실행 허용, 기존 30분 주기 예약과 11:09 갱신 성공 로그를 확인했다. 기기가 약 11:06 재부팅되어 오전 10시 이전 로그가 남아 있지 않으므로 당시 실패 원인은 확정하지 않았다. 수정 Debug APK(버전명 0.9.6 유지)를 덮어쓰기 설치하고 Nova의 기존 큰 위젯에서 상암동·19°C·주간 태양 표시를 확인했다. 84개 단위 테스트와 Debug 빌드 통과. ADB jobscheduler 강제 실행만으로 WorkManager의 다음 실행 시각까지 무시되지는 않았으므로, 이를 수정 Worker의 실제 실행 성공으로 보고하지 않는다. 야간 방치 후 다음 날 오전 자연 주기 갱신과 GPS 실패 시 대체 경로는 추가 실기기 검증이 필요하다. WorkManager는 정시 실행을 보장하지 않으며, 네트워크 제약·OS 지연·기존 지수 재시도 정책은 유지한다. 수정본은 아직 새 버전으로 공개 배포하지 않았다.
+- 2026-10-01 오전 10시 위젯 달 아이콘 잔류 신고: S23의 위치 항상 허용, 백그라운드 실행 허용, 기존 30분 주기 예약과 11:09 갱신 성공 로그를 확인했다. 기기가 약 11:06 재부팅되어 오전 10시 이전 로그가 남아 있지 않으므로 당시 실패 원인은 확정하지 않았다. v0.9.7을 설치하고 Nova의 기존 큰 위젯에서 상암동·19°C·주간 태양 표시를 확인했다. 84개 단위 테스트와 Debug·Release 빌드 통과. ADB jobscheduler 강제 실행만으로 WorkManager의 다음 실행 시각까지 무시되지는 않았으므로, 이를 수정 Worker의 실제 실행 성공으로 보고하지 않는다. 야간 방치 후 다음 날 오전 자연 주기 갱신과 GPS 실패 시 대체 경로는 추가 실기기 검증이 필요하다. WorkManager는 정시 실행을 보장하지 않으며, 네트워크 제약·OS 지연·기존 지수 재시도 정책은 유지한다. v0.9.7을 공개 배포했다.
 
 1. **날씨 탭(Tab 0) 고도화**:
    - 현재 날씨와 가로 스크롤 시간별 예보, 내일·모레 고정 일별 예보를 구현함. 시간별 차트가 필요하면 추후 별도 기획.
@@ -160,6 +160,7 @@
    - `v0.9.4`는 versionCode `12`이며, 신규 설치의 위치 권한 요청, 잘못 저장된 `설정 위치` 캐시 무효화, 최근 위치 우선 사용, APK 교체 시 위젯 재표시를 포함한다. 동일한 디버그 인증서로 서명한 `tokiweather-v0.9.4.apk`를 [GitHub Release](https://github.com/GNOJES/tokiweather/releases/tag/v0.9.4)에 게시했다. 61개 단위 테스트와 Debug·Release 빌드가 통과했으며, 로컬 및 공개 APK 자산의 업로드 및 다운로드가 정상 확인되었다.
    - `v0.9.5`는 versionCode `13`이며, 현재 날씨 카드의 체감온도 표시, 시간별/오전·오후 예보의 강수량(mm) 표시 및 3시간 구간 합산, 시간별 예보 가로 스크롤 시 날짜 라벨 고정(Sticky), 일별 예보 카드의 조밀한 간격 최적화를 포함한다. 동일한 디버그 인증서로 서명한 `tokiweather-v0.9.5.apk`를 [GitHub Release](https://github.com/GNOJES/tokiweather/releases/tag/v0.9.5)에 게시했다. 67개 단위 테스트와 Debug·Release 빌드가 통과했으며, 로컬 및 공개 APK 자산의 SHA-256은 `8112fbac7ce628720155e1d19369c38050806f7af093bc30976416ae835b9af3`이다.
    - `v0.9.6`은 versionCode `14`이며, 단기예보의 1000행 초과 페이지 누락 및 PTY 5·6·7 아이콘 변환 누락을 수정한다. 72개 단위 테스트와 Debug·Release 빌드가 통과했다. S23에서 10/5 00시까지 87칸 예보·누락됐던 마지막 구간 강수량·PTY=5 비 아이콘을 확인했다. 기존 디버그 인증서의 Release APK SHA-256은 `779b9b0e1a4ade297e6c7c087503ab1ae9678bbde0e749c15509bb84c1e83fa8`이다. [GitHub Release](https://github.com/GNOJES/tokiweather/releases/tag/v0.9.6)에 `tokiweather-v0.9.6.apk`를 게시했고 공개 다운로드본의 SHA-256이 로컬 APK와 일치했다. 동일 Release APK를 S23에 최종 덮어쓰기 설치·실행했다.
+   - `v0.9.7`은 versionCode `15`이며, 백그라운드 GPS 실패 시 마지막 확인 지역으로 조회, 조회 실패 뒤 캐시 재표시, Glance 위젯의 날씨·테마 Flow 관찰을 포함한다. 84개 단위 테스트와 Debug·Release 빌드가 통과했다. 기존 디버그 인증서의 Release APK SHA-256은 `59a8bfb5ff1182ab026c19508fe5411cf42cd0fff19cad6a691958bbb21894e0`이다. [GitHub Release](https://github.com/GNOJES/tokiweather/releases/tag/v0.9.7)에 `tokiweather-v0.9.7.apk`를 게시하고 공개 다운로드본의 해시 일치를 확인했다. 동일 Release APK를 S23에 덮어쓰기 설치했다. 자연 주기 자동 갱신은 실기기에서 아직 확인하지 않았다.
 3. **에어코리아 연동 운영 확인**:
    - PM10·PM2.5 조회는 에어코리아로 전환됨. `local.properties`의 `AIRKOREA_API_KEY`는 Decoding 키를 저장하며 Retrofit이 URL 인코딩함. 키를 Git/로그에 포함하지 말 것.
    - [대기오염정보](https://www.data.go.kr/data/15073861/openapi.do)와 [측정소정보](https://www.data.go.kr/data/15073877/openapi.do) 두 서비스의 활용승인이 필요. 2026-09-23 두 서비스 모두 resultCode=00 인증 성공. 측정소 목록 672개 수신 및 서울시청 테스트 좌표의 최근접 중구 측정소 대기질 조회 성공. 첫 대기질 요청은 시간 초과였으나 재시도 성공.
