@@ -123,6 +123,8 @@
 
 ## Testing and verification
 
+- 2026-10-06 v0.9.8 게시 완료: 검증된 소스 커밋 d5a7e4b6aaab9d1f8800d23db038b26b3446cb80을 main에 push하고 [GitHub Release](https://github.com/GNOJES/tokiweather/releases/tag/v0.9.8)에 tokiweather-v0.9.8.apk(26,452,583바이트)를 게시했다. 공개 다운로드본의 SHA-256이 로컬 Release APK와 일치하고 릴리즈 태그가 해당 소스 커밋을 가리킴을 확인했다. 연결된 S23(R3CWB0EB0JN)에 동일 Release APK를 기존 데이터·위젯을 유지하는 install -r로 설치했고 package versionName=0.9.8/versionCode=16을 확인했다. 이 설치 확인을 남은 실제 이동·밤→낮·재부팅 뒤 정기 실행 검증으로 간주하지 않는다. 남은 항목은 사용자 요청대로 두 사용자 실사용으로 확인한다.
+
 - 2026-10-06 0.9.8 최종 빌드: testDebugUnitTest와 testReleaseUnitTest 각각 110개(실패/오류 0), assembleDebug와 assembleRelease 및 git diff --check 통과. APK의 package=com.toki.weather/versionName=0.9.8/versionCode=16 및 Android Debug 서명을 확인했다. 서명 인증서 SHA-256은 8c34b314a02c83265fc7cf9289e5d353871e62c9a3f323dbda8a535c9512c15f, Release APK SHA-256은 cba323c9a1001b606a2c9d1c71c7c5a5d05e0389a2c80d3423eb62d88e6909aa이다. GitHub 게시 여부는 아래 완료 기록을 기준으로 확인한다.
 
 - 2026-10-06 사용자 요청으로 0.9.8(versionCode 16) 배포를 준비한다. 날짜 캐시·부분 갱신·동시 저장 보호·갱신 상태와 진단·One UI 2×1 디자인 및 미리보기·위치 후보 진단·WebView 오류 처리를 포함한다. 기존 Nova 3×2 디자인은 유지한다. 사용자는 남은 실제 지역 이동·밤→낮 전환·재부팅 후 정기 주기 실행을 두 사용자 실사용으로 확인하기로 했다. One UI용 2×1의 Nova 좁은 할당 영역 잘림은 알려진 호환성 한계로 남긴다. 기존 디버그 인증서로 Release 빌드를 서명한다. 실제 게시 결과와 검증은 완료 뒤 추가 기록한다.
