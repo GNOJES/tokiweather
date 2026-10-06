@@ -47,4 +47,16 @@ class RefreshAndUpdateTest {
             fail("Cancellation must propagate")
         } catch (_: CancellationException) { }
     }
+    @Test fun displayFailureIsDistinctFromWeatherFetchFailure() = runBlocking {
+        var fetches = 0
+        try {
+            refreshAndUpdate(fetch = { fetches++; Result.success(sample) },
+                updateWidgets = { throw IOException("private URL must not escape in display error") })
+            fail("Display failure must be distinct")
+        } catch (e: WidgetDisplayException) {
+            assertEquals(1, fetches)
+            assertFalse(e.message.orEmpty().contains("private URL"))
+        }
+    }
+
 }

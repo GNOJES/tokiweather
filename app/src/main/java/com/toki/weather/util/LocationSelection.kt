@@ -13,6 +13,11 @@ data class AddressCandidate(
     val locality: String? = null
 )
 
+enum class AddressReason { SELECTED, OUTSIDE_200M, INVALID_COORDINATES, NO_DONG, NEARBY_UNUSED }
+data class AddressCandidateDiagnostic(val region: String?, val distanceMeters: Int?, val reason: AddressReason)
+data class AddressSelection(val name: String, val candidates: List<AddressCandidateDiagnostic> = emptyList())
+data class AddressDiagnostics(val at: Long, val selection: AddressSelection)
+
 data class LocationFix(val elapsedNanos: Long, val accuracyMeters: Float)
 
 object LocationSelection {
@@ -22,27 +27,38 @@ object LocationSelection {
     private const val QUICK_FIX_AGE_NANOS = 30_000_000_000L
     private const val COMPARABLE_FIX_WINDOW_NANOS = 15_000_000_000L
 
-    fun addressName(latitude: Double, longitude: Double, candidates: List<AddressCandidate>): String {
-        val nearby = candidates.mapNotNull { candidate ->
-            val lat = candidate.latitude ?: return@mapNotNull null
-            val lon = candidate.longitude ?: return@mapNotNull null
-            if (!lat.isFinite() || !lon.isFinite() || lat !in -90.0..90.0 || lon !in -180.0..180.0) return@mapNotNull null
-            val distance = distanceMeters(latitude, longitude, lat, lon)
-            if (distance > MAX_ADDRESS_DISTANCE_METERS) null else candidate to distance
-        }.sortedBy { it.second }
-        for ((candidate, _) in nearby) {
-            val structured = listOf(candidate.subLocality, candidate.thoroughfare)
-                .firstOrNull { it != null && isDongName(it) }
-            if (structured != null) return structured
-            val token = candidate.addressLine.orEmpty().split(Regex("[\\s,()]+"))
-                .lastOrNull(::isDongName)
-            if (token != null) return token
-            candidate.featureName?.takeIf(::isDongName)?.let { return it }
+    fun addressName(latitude: Double, longitude: Double, candidates: List<AddressCandidate>): String =
+        selectAddress(latitude, longitude, candidates).name
+
+    /** Persist only region tokens, rounded distance and fixed reasons, never full addresses. */
+    fun selectAddress(latitude: Double, longitude: Double, candidates: List<AddressCandidate>): AddressSelection {
+        val items = candidates.take(5)
+        fun dong(candidate: AddressCandidate): String? =
+            listOf(candidate.subLocality, candidate.thoroughfare).firstOrNull { it != null && isDongName(it) }
+                ?: candidate.addressLine.orEmpty().split(Regex("[\\s,()]+" )).lastOrNull(::isDongName)
+                ?: candidate.featureName?.takeIf(::isDongName)
+        fun district(candidate: AddressCandidate): String? = listOf(candidate.subLocality, candidate.locality)
+            .firstOrNull { it != null && it.matches(Regex("^[가-힣]+(?:구|군|시)$")) }
+        val distances = items.map { candidate ->
+            val lat = candidate.latitude
+            val lon = candidate.longitude
+            if (lat == null || lon == null || !lat.isFinite() || !lon.isFinite() ||
+                lat !in -90.0..90.0 || lon !in -180.0..180.0) null
+            else distanceMeters(latitude, longitude, lat, lon)
         }
-        // 동 후보를 검증하지 못하면 구/시 단위로만 표시한다.
-        return candidates.asSequence().flatMap { sequenceOf(it.subLocality, it.locality) }
-            .filterNotNull().firstOrNull { it.matches(Regex("^[가-힣]+(?:구|군|시)$")) }
-            ?: "현재 위치"
+        val selected = items.indices.filter { distances[it]?.let { d -> d <= MAX_ADDRESS_DISTANCE_METERS } == true }
+            .sortedBy { distances[it] }.firstOrNull { dong(items[it]) != null }
+        val name = selected?.let { dong(items[it]) } ?: items.firstNotNullOfOrNull(::district) ?: "현재 위치"
+        return AddressSelection(name, items.mapIndexed { index, candidate ->
+            val distance = distances[index]
+            AddressCandidateDiagnostic(dong(candidate) ?: district(candidate), distance?.roundToInt(), when {
+                distance == null -> AddressReason.INVALID_COORDINATES
+                distance > MAX_ADDRESS_DISTANCE_METERS -> AddressReason.OUTSIDE_200M
+                index == selected -> AddressReason.SELECTED
+                dong(candidate) == null -> AddressReason.NO_DONG
+                else -> AddressReason.NEARBY_UNUSED
+            })
+        })
     }
 
     fun fixIndex(fixes: List<LocationFix>, nowNanos: Long): Int? {

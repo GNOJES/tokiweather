@@ -6,14 +6,16 @@ import androidx.compose.ui.graphics.Color
  * 위젯에 표시할 날씨 및 대기질 데이터 모델
  */
 data class CachedWeather(
+    val refresh: RefreshMetadata = RefreshMetadata(),
     val locationName: String = "위치 확인 중",
     val currentTemp: Int,
     val currentCondition: WeatherCondition,
     val currentHumidity: Int? = null,
     val currentFeelsLike: Int? = null,
-    val todayPop: Int = 0,         // 오늘 남은 시간대 최대 강수확률 (%)
+    val todayPop: Int? = null,         // 오늘 남은 시간대 최대 강수확률 (%)
     val hourlyForecasts: List<HourlyForecast> = emptyList(),
     val hourlyForecastIssuedAt: String? = null,
+    val datedForecasts: List<DatedForecast> = emptyList(),
     val halfDayForecasts: List<HalfDayForecast?> = emptyList(), // 오늘·내일·모레의 오전/오후 순서
     val pm10: Int = -1,            // 미세먼지 수치 (㎍/㎥, -1은 미수신)
     val pm25: Int = -1,            // 초미세먼지 수치 (㎍/㎥, -1은 미수신)
@@ -23,11 +25,11 @@ data class CachedWeather(
     val tomorrowMin: Int?,
     val tomorrowMax: Int?,
     val tomorrowCondition: WeatherCondition,
-    val tomorrowPop: Int = 0,      // 내일 최대 강수확률 (%)
+    val tomorrowPop: Int? = null,      // 내일 최대 강수확률 (%)
     val dayAfterMin: Int?,
     val dayAfterMax: Int?,
     val dayAfterCondition: WeatherCondition,
-    val dayAfterPop: Int = 0,      // 모레 최대 강수확률 (%)
+    val dayAfterPop: Int? = null,      // 모레 최대 강수확률 (%)
     val lastUpdated: Long = System.currentTimeMillis()
 ) {
     /**
@@ -63,17 +65,17 @@ data class CachedWeather(
             locationName = "위치 확인 중",
             currentTemp = 0,
             currentCondition = WeatherCondition.UNKNOWN,
-            todayPop = 0,
+            todayPop = null,
             pm10 = -1,
             pm25 = -1,
             tomorrowMin = null,
             tomorrowMax = null,
             tomorrowCondition = WeatherCondition.UNKNOWN,
-            tomorrowPop = 0,
+            tomorrowPop = null,
             dayAfterMin = null,
             dayAfterMax = null,
             dayAfterCondition = WeatherCondition.UNKNOWN,
-            dayAfterPop = 0,
+            dayAfterPop = null,
             lastUpdated = 0L
         )
     }

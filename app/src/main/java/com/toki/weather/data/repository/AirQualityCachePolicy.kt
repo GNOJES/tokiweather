@@ -20,14 +20,15 @@ fun mergeAirQuality(
         previous.pmObservedAt != null && now - previous.pmObservedAt in 0L..3 * 60 * 60 * 1000L
     return if (canRetain) {
         forecast.copy(
-            pm10 = previous!!.pm10,
+            refresh = forecast.refresh.copy(airQualityRetained = previous!!.pm10 >= 0 || previous.pm25 >= 0, airQualityPending = false),
+            pm10 = previous.pm10,
             pm25 = previous.pm25,
             pmObservedAt = previous.pmObservedAt,
             airQualityLatitude = previous.airQualityLatitude,
             airQualityLongitude = previous.airQualityLongitude
         )
     } else {
-        forecast.copy(pm10 = reading.pm10, pm25 = reading.pm25, pmObservedAt = reading.observedAt)
+        forecast.copy(refresh = forecast.refresh.copy(airQualityRetained = false, airQualityPending = false), pm10 = reading.pm10, pm25 = reading.pm25, pmObservedAt = reading.observedAt)
     }
 }
 

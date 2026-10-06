@@ -51,6 +51,9 @@ import com.toki.weather.ui.screen.SettingsScreen
 import com.toki.weather.ui.screen.WeatherPlaceholderScreen
 import com.toki.weather.widget.TokiWeatherWidget
 import com.toki.weather.widget.TokiWeatherWidgetLarge
+import com.toki.weather.worker.WidgetDisplayException
+import com.toki.weather.worker.requestWeatherWidgetDisplay
+import com.toki.weather.data.model.RefreshSource
 import com.toki.weather.worker.refreshAndUpdate
 import com.toki.weather.worker.WeatherWorkScheduler
 import com.toki.weather.util.LocationHelper
@@ -107,23 +110,26 @@ fun MainScreen(
     var isRefreshing by remember { mutableStateOf(false) }
     var initialRefreshAttempted by remember { mutableStateOf(false) }
 
-    val refreshWeather: () -> Unit = {
+    var pendingRefreshSource by remember { mutableStateOf(RefreshSource.MANUAL) }
+    val refreshWeather: (RefreshSource) -> Unit = { source ->
         if (!isRefreshing) {
             isRefreshing = true
             coroutineScope.launch {
                 try {
                     withContext(Dispatchers.IO) {
                         refreshAndUpdate(
-                            fetch = { WeatherRepository(context).fetchAndSave() },
+                            fetch = { WeatherRepository(context).fetchAndSave(source = source,
+                                                    onWeatherSaved = { requestWeatherWidgetDisplay(context) }) },
                             updateWidgets = {
-                                TokiWeatherWidget().updateAll(context)
-                                TokiWeatherWidgetLarge().updateAll(context)
+                                requestWeatherWidgetDisplay(context)
                             }
                         )
                     }
                     Toast.makeText(context, "날씨 정보가 갱신되었습니다.", Toast.LENGTH_SHORT).show()
                 } catch (e: CancellationException) {
                     throw e
+                } catch (_: WidgetDisplayException) {
+                    Toast.makeText(context, "날씨는 갱신됐습니다. 위젯 표시를 다시 시도합니다.", Toast.LENGTH_LONG).show()
                 } catch (_: Exception) {
                     Toast.makeText(context, "날씨 갱신에 실패했습니다. 잠시 후 다시 시도해 주세요.", Toast.LENGTH_SHORT).show()
                 } finally {
@@ -138,11 +144,12 @@ fun MainScreen(
     ) { permissions ->
         if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
             permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-        ) refreshWeather()
+        ) refreshWeather(pendingRefreshSource)
         else Toast.makeText(context, "현재 동네 날씨를 보려면 위치 권한이 필요합니다.", Toast.LENGTH_SHORT).show()
     }
-    val refreshWithPermission: () -> Unit = {
-        if (LocationHelper.hasLocationPermission(context)) refreshWeather()
+    val refreshWithPermission: (RefreshSource) -> Unit = { source ->
+        pendingRefreshSource = source
+        if (LocationHelper.hasLocationPermission(context)) refreshWeather(pendingRefreshSource)
         else locationPermissionLauncher.launch(arrayOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION
@@ -155,7 +162,7 @@ fun MainScreen(
             !initialRefreshAttempted
         ) {
             initialRefreshAttempted = true
-            refreshWithPermission()
+            refreshWithPermission(RefreshSource.INITIAL)
         }
     }
 
@@ -227,7 +234,7 @@ fun MainScreen(
                 0 -> WeatherPlaceholderScreen(
                     weather = cachedWeather,
                     isRefreshing = isRefreshing,
-                    onRefresh = refreshWithPermission,
+                    onRefresh = { refreshWithPermission(RefreshSource.MANUAL) },
                     hourlyIntervalHours = hourlyIntervalHours,
                     onHourlyIntervalSelected = { hours ->
                         coroutineScope.launch { dataStore.saveHourlyInterval(hours) }

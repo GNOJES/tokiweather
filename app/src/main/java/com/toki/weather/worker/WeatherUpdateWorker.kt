@@ -27,11 +27,9 @@ class WeatherUpdateWorker(
 
         val repo = WeatherRepository(applicationContext)
         val outcome = backgroundRefreshAndUpdate(
-            fetch = { repo.fetchAndSave(allowSavedLocation = true) },
-            updateWidgets = listOf(
-                { TokiWeatherWidget().updateAll(applicationContext) },
-                { TokiWeatherWidgetLarge().updateAll(applicationContext) }
-            )
+            fetch = { repo.fetchAndSave(allowSavedLocation = true,
+                onWeatherSaved = { requestWeatherWidgetDisplay(applicationContext) }) },
+            updateWidgets = listOf({ requestWeatherWidgetDisplay(applicationContext) })
         )
         outcome.fetchFailure?.let {
             Log.e(TAG, "Weather fetch failed: ${it.javaClass.simpleName}")
@@ -39,8 +37,8 @@ class WeatherUpdateWorker(
         outcome.widgetFailures.forEach {
             Log.e(TAG, "Failed to update widget: ${it.javaClass.simpleName}")
         }
-        return if (outcome.succeeded) {
-            Log.d(TAG, "Weather update completed successfully")
+        return if (outcome.weatherSaved) {
+            Log.d(TAG, "Weather refresh finished; display requests handled separately")
             Result.success()
         } else {
             Result.retry()

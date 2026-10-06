@@ -11,6 +11,10 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.toki.weather.data.model.RefreshMetadata
+import com.toki.weather.data.model.RefreshEvent
+import com.toki.weather.data.model.DatedForecast
+import androidx.datastore.preferences.core.MutablePreferences
 import com.toki.weather.data.model.CachedWeather
 import com.toki.weather.data.model.HalfDayForecast
 import com.toki.weather.data.model.HourlyForecast
@@ -18,6 +22,7 @@ import com.toki.weather.data.model.WeatherCondition
 import com.toki.weather.data.model.WidgetThemeConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import com.toki.weather.util.AddressDiagnostics
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
@@ -28,9 +33,15 @@ private val Context.weatherDataStore: DataStore<Preferences> by preferencesDataS
     name = "weather_cache"
 )
 
-class WeatherDataStore(private val context: Context) {
+class WeatherDataStore(private val store: DataStore<Preferences>) {
+    constructor(context: Context) : this(context.weatherDataStore)
 
     companion object {
+        private val KEY_REFRESH = stringPreferencesKey("refresh_metadata")
+        private val KEY_ADDRESS = stringPreferencesKey("address_diagnostics")
+        private val KEY_EVENTS = stringPreferencesKey("refresh_events")
+        private val KEY_REQUEST_SEQUENCE = longPreferencesKey("request_sequence")
+        private val KEY_COMMITTED_REQUEST = longPreferencesKey("committed_request")
         // 날씨 데이터 키
         private val KEY_LOCATION_NAME = stringPreferencesKey("location_name")
         private val KEY_CURRENT_TEMP = intPreferencesKey("current_temp")
@@ -40,6 +51,7 @@ class WeatherDataStore(private val context: Context) {
         private val KEY_TODAY_POP = intPreferencesKey("today_pop")
         private val KEY_HOURLY_FORECASTS = stringPreferencesKey("hourly_forecasts")
         private val KEY_HOURLY_FORECAST_ISSUED_AT = stringPreferencesKey("hourly_forecast_issued_at")
+        private val KEY_DATED_FORECASTS = stringPreferencesKey("dated_forecasts")
         private val KEY_HALF_DAY_FORECASTS = stringPreferencesKey("half_day_forecasts")
         // 출처 전환 이전 Open-Meteo 캐시는 읽지 않는다.
         private val KEY_PM10 = intPreferencesKey("airkorea_pm10")
@@ -74,10 +86,13 @@ class WeatherDataStore(private val context: Context) {
     /**
      * 캐시된 날씨 데이터를 Flow로 관찰
      */
-    val weatherFlow: Flow<CachedWeather> = context.weatherDataStore.data.map { prefs ->
+    val weatherFlow: Flow<CachedWeather> = store.data.map(::readWeather)
+
+    private fun readWeather(prefs: Preferences): CachedWeather {
         // 이전 버전이 위치 권한 없이 서울 기본 좌표로 저장한 날씨는 현재 위치 자료가 아니다.
-        if (prefs[KEY_LOCATION_NAME] == "설정 위치") return@map CachedWeather.EMPTY
-        CachedWeather(
+        if (prefs[KEY_LOCATION_NAME] == "설정 위치") return CachedWeather.EMPTY
+        return CachedWeather(
+            refresh = prefs[KEY_REFRESH]?.let { runCatching { Gson().fromJson(it, RefreshMetadata::class.java) }.getOrNull() } ?: RefreshMetadata(),
             locationName = prefs[KEY_LOCATION_NAME] ?: "위치 확인 중",
             currentTemp = prefs[KEY_CURRENT_TEMP] ?: 0,
             currentCondition = prefs[KEY_CURRENT_CONDITION]?.let {
@@ -85,7 +100,7 @@ class WeatherDataStore(private val context: Context) {
             } ?: WeatherCondition.UNKNOWN,
             currentHumidity = prefs[KEY_CURRENT_HUMIDITY],
             currentFeelsLike = prefs[KEY_CURRENT_FEELS_LIKE],
-            todayPop = prefs[KEY_TODAY_POP] ?: 0,
+            todayPop = prefs[KEY_TODAY_POP],
             hourlyForecasts = prefs[KEY_HOURLY_FORECASTS]?.let { json ->
                 runCatching {
                     Gson().fromJson<List<HourlyForecast>>(json,
@@ -93,6 +108,10 @@ class WeatherDataStore(private val context: Context) {
                 }.getOrNull()
             }.orEmpty(),
             hourlyForecastIssuedAt = prefs[KEY_HOURLY_FORECAST_ISSUED_AT],
+            datedForecasts = prefs[KEY_DATED_FORECASTS]?.let { json ->
+                runCatching { Gson().fromJson<List<DatedForecast>>(json,
+                    object : TypeToken<List<DatedForecast>>() {}.type) }.getOrNull()
+            }.orEmpty(),
             halfDayForecasts = prefs[KEY_HALF_DAY_FORECASTS]?.let { json ->
                 runCatching {
                     Gson().fromJson<List<HalfDayForecast?>>(json,
@@ -109,13 +128,13 @@ class WeatherDataStore(private val context: Context) {
             tomorrowCondition = prefs[KEY_TOMORROW_CONDITION]?.let {
                 try { WeatherCondition.valueOf(it) } catch (_: Exception) { WeatherCondition.UNKNOWN }
             } ?: WeatherCondition.UNKNOWN,
-            tomorrowPop = prefs[KEY_TOMORROW_POP] ?: 0,
+            tomorrowPop = prefs[KEY_TOMORROW_POP],
             dayAfterMin = prefs[KEY_DAY_AFTER_MIN],
             dayAfterMax = prefs[KEY_DAY_AFTER_MAX],
             dayAfterCondition = prefs[KEY_DAY_AFTER_CONDITION]?.let {
                 try { WeatherCondition.valueOf(it) } catch (_: Exception) { WeatherCondition.UNKNOWN }
             } ?: WeatherCondition.UNKNOWN,
-            dayAfterPop = prefs[KEY_DAY_AFTER_POP] ?: 0,
+            dayAfterPop = prefs[KEY_DAY_AFTER_POP],
             lastUpdated = prefs[KEY_LAST_UPDATED] ?: 0L
         )
     }
@@ -123,7 +142,7 @@ class WeatherDataStore(private val context: Context) {
     /**
      * 위젯 커스텀 테마 설정을 Flow로 관찰
      */
-    val themeFlow: Flow<WidgetThemeConfig> = context.weatherDataStore.data.map { prefs ->
+    val themeFlow: Flow<WidgetThemeConfig> = store.data.map { prefs ->
         WidgetThemeConfig(
             backgroundColorHex = prefs[KEY_BG_COLOR] ?: "#261643",
             backgroundAlpha = prefs[KEY_BG_ALPHA] ?: 0.8f,
@@ -135,50 +154,97 @@ class WeatherDataStore(private val context: Context) {
     /**
      * 갱신 주기 Flow (분 단위, 기본값 30분)
      */
-    val updateIntervalFlow: Flow<Int> = context.weatherDataStore.data.map { prefs ->
+    val updateIntervalFlow: Flow<Int> = store.data.map { prefs ->
         prefs[KEY_UPDATE_INTERVAL] ?: 30
     }
 
-    val hourlyIntervalFlow: Flow<Int> = context.weatherDataStore.data.map { prefs ->
+    val hourlyIntervalFlow: Flow<Int> = store.data.map { prefs ->
         prefs[KEY_HOURLY_INTERVAL]?.takeIf { it == 1 || it == 3 } ?: 1
     }
 
     /**
      * 날씨 데이터 저장
      */
-    suspend fun save(weather: CachedWeather) {
-        context.weatherDataStore.edit { prefs ->
-            prefs[KEY_LOCATION_NAME] = weather.locationName
-            prefs[KEY_CURRENT_TEMP] = weather.currentTemp
-            prefs[KEY_CURRENT_CONDITION] = weather.currentCondition.name
-            weather.currentHumidity?.let { prefs[KEY_CURRENT_HUMIDITY] = it } ?: prefs.remove(KEY_CURRENT_HUMIDITY)
-            weather.currentFeelsLike?.let { prefs[KEY_CURRENT_FEELS_LIKE] = it } ?: prefs.remove(KEY_CURRENT_FEELS_LIKE)
-            prefs[KEY_TODAY_POP] = weather.todayPop
-            prefs[KEY_HOURLY_FORECASTS] = Gson().toJson(weather.hourlyForecasts)
-            weather.hourlyForecastIssuedAt?.let { prefs[KEY_HOURLY_FORECAST_ISSUED_AT] = it } ?: prefs.remove(KEY_HOURLY_FORECAST_ISSUED_AT)
-            prefs[KEY_HALF_DAY_FORECASTS] = Gson().toJson(weather.halfDayForecasts)
-            prefs[KEY_PM10] = weather.pm10
-            prefs[KEY_PM25] = weather.pm25
-            weather.pmObservedAt?.let { prefs[KEY_PM_OBSERVED_AT] = it } ?: prefs.remove(KEY_PM_OBSERVED_AT)
-            weather.airQualityLatitude?.let { prefs[KEY_AIR_QUALITY_LATITUDE] = it } ?: prefs.remove(KEY_AIR_QUALITY_LATITUDE)
-            weather.airQualityLongitude?.let { prefs[KEY_AIR_QUALITY_LONGITUDE] = it } ?: prefs.remove(KEY_AIR_QUALITY_LONGITUDE)
-            weather.tomorrowMin?.let { prefs[KEY_TOMORROW_MIN] = it } ?: prefs.remove(KEY_TOMORROW_MIN)
-            weather.tomorrowMax?.let { prefs[KEY_TOMORROW_MAX] = it } ?: prefs.remove(KEY_TOMORROW_MAX)
-            prefs[KEY_TOMORROW_CONDITION] = weather.tomorrowCondition.name
-            prefs[KEY_TOMORROW_POP] = weather.tomorrowPop
-            weather.dayAfterMin?.let { prefs[KEY_DAY_AFTER_MIN] = it } ?: prefs.remove(KEY_DAY_AFTER_MIN)
-            weather.dayAfterMax?.let { prefs[KEY_DAY_AFTER_MAX] = it } ?: prefs.remove(KEY_DAY_AFTER_MAX)
-            prefs[KEY_DAY_AFTER_CONDITION] = weather.dayAfterCondition.name
-            prefs[KEY_DAY_AFTER_POP] = weather.dayAfterPop
-            prefs[KEY_LAST_UPDATED] = weather.lastUpdated
+    private fun writeWeather(prefs: MutablePreferences, weather: CachedWeather) {
+        prefs[KEY_REFRESH] = Gson().toJson(weather.refresh)
+        prefs[KEY_LOCATION_NAME] = weather.locationName
+        prefs[KEY_CURRENT_TEMP] = weather.currentTemp
+        prefs[KEY_CURRENT_CONDITION] = weather.currentCondition.name
+        weather.currentHumidity?.let { prefs[KEY_CURRENT_HUMIDITY] = it } ?: prefs.remove(KEY_CURRENT_HUMIDITY)
+        weather.currentFeelsLike?.let { prefs[KEY_CURRENT_FEELS_LIKE] = it } ?: prefs.remove(KEY_CURRENT_FEELS_LIKE)
+        weather.todayPop?.let { prefs[KEY_TODAY_POP] = it } ?: prefs.remove(KEY_TODAY_POP)
+        prefs[KEY_HOURLY_FORECASTS] = Gson().toJson(weather.hourlyForecasts)
+        weather.hourlyForecastIssuedAt?.let { prefs[KEY_HOURLY_FORECAST_ISSUED_AT] = it } ?: prefs.remove(KEY_HOURLY_FORECAST_ISSUED_AT)
+        prefs[KEY_DATED_FORECASTS] = Gson().toJson(weather.datedForecasts)
+        prefs[KEY_HALF_DAY_FORECASTS] = Gson().toJson(weather.halfDayForecasts)
+        prefs[KEY_PM10] = weather.pm10
+        prefs[KEY_PM25] = weather.pm25
+        weather.pmObservedAt?.let { prefs[KEY_PM_OBSERVED_AT] = it } ?: prefs.remove(KEY_PM_OBSERVED_AT)
+        weather.airQualityLatitude?.let { prefs[KEY_AIR_QUALITY_LATITUDE] = it } ?: prefs.remove(KEY_AIR_QUALITY_LATITUDE)
+        weather.airQualityLongitude?.let { prefs[KEY_AIR_QUALITY_LONGITUDE] = it } ?: prefs.remove(KEY_AIR_QUALITY_LONGITUDE)
+        weather.tomorrowMin?.let { prefs[KEY_TOMORROW_MIN] = it } ?: prefs.remove(KEY_TOMORROW_MIN)
+        weather.tomorrowMax?.let { prefs[KEY_TOMORROW_MAX] = it } ?: prefs.remove(KEY_TOMORROW_MAX)
+        prefs[KEY_TOMORROW_CONDITION] = weather.tomorrowCondition.name
+        weather.tomorrowPop?.let { prefs[KEY_TOMORROW_POP] = it } ?: prefs.remove(KEY_TOMORROW_POP)
+        weather.dayAfterMin?.let { prefs[KEY_DAY_AFTER_MIN] = it } ?: prefs.remove(KEY_DAY_AFTER_MIN)
+        weather.dayAfterMax?.let { prefs[KEY_DAY_AFTER_MAX] = it } ?: prefs.remove(KEY_DAY_AFTER_MAX)
+        prefs[KEY_DAY_AFTER_CONDITION] = weather.dayAfterCondition.name
+        weather.dayAfterPop?.let { prefs[KEY_DAY_AFTER_POP] = it } ?: prefs.remove(KEY_DAY_AFTER_POP)
+        prefs[KEY_LAST_UPDATED] = weather.lastUpdated
+    }
+
+    suspend fun beginRequest(): Long {
+        var id = 0L
+        store.edit { prefs ->
+            id = (prefs[KEY_REQUEST_SEQUENCE] ?: 0L) + 1
+            prefs[KEY_REQUEST_SEQUENCE] = id
         }
+        return id
+    }
+
+    /** Atomic across every repository instance, including worker/manual/initial requests. */
+    suspend fun commit(requestId: Long, onlyIfCurrent: Boolean = false,
+                       transform: (CachedWeather) -> CachedWeather): Boolean {
+        var committed = false
+        store.edit { prefs ->
+            val previousId = prefs[KEY_COMMITTED_REQUEST] ?: 0L
+            if (if (onlyIfCurrent) requestId == previousId else requestId > previousId) {
+                val weather = transform(readWeather(prefs))
+                writeWeather(prefs, weather.copy(refresh = weather.refresh.copy(requestId = requestId)))
+                prefs[KEY_COMMITTED_REQUEST] = requestId
+                committed = true
+            }
+        }
+        return committed
+    }
+
+    private fun readEvents(prefs: Preferences): List<RefreshEvent> = prefs[KEY_EVENTS]?.let {
+        runCatching { Gson().fromJson<List<RefreshEvent>>(it,
+            object : TypeToken<List<RefreshEvent>>() {}.type) }.getOrNull()
+    }.orEmpty()
+
+    val addressDiagnosticsFlow: Flow<AddressDiagnostics?> = store.data.map { prefs ->
+        prefs[KEY_ADDRESS]?.let { runCatching { Gson().fromJson(it, AddressDiagnostics::class.java) }.getOrNull() }
+    }
+
+    suspend fun saveAddressDiagnostics(value: AddressDiagnostics) {
+        store.edit { prefs ->
+            val previous = prefs[KEY_ADDRESS]?.let { runCatching { Gson().fromJson(it, AddressDiagnostics::class.java) }.getOrNull() }
+            if (previous == null || value.at >= previous.at) prefs[KEY_ADDRESS] = Gson().toJson(value)
+        }
+    }
+
+    val diagnosticsFlow: Flow<List<RefreshEvent>> = store.data.map(::readEvents)
+
+    suspend fun record(event: RefreshEvent) {
+        store.edit { prefs -> prefs[KEY_EVENTS] = Gson().toJson((readEvents(prefs) + event).takeLast(80)) }
     }
 
     /**
      * 위젯 커스텀 테마 저장
      */
     suspend fun saveTheme(theme: WidgetThemeConfig) {
-        context.weatherDataStore.edit { prefs ->
+        store.edit { prefs ->
             prefs[KEY_BG_COLOR] = theme.backgroundColorHex
             prefs[KEY_BG_ALPHA] = theme.backgroundAlpha
             prefs[KEY_TEXT_COLOR] = theme.textColorHex
@@ -190,20 +256,20 @@ class WeatherDataStore(private val context: Context) {
      * 갱신 주기 저장
      */
     suspend fun saveUpdateInterval(minutes: Int) {
-        context.weatherDataStore.edit { prefs ->
+        store.edit { prefs ->
             prefs[KEY_UPDATE_INTERVAL] = minutes
         }
     }
 
     suspend fun saveHourlyInterval(hours: Int) {
         require(hours == 1 || hours == 3)
-        context.weatherDataStore.edit { prefs -> prefs[KEY_HOURLY_INTERVAL] = hours }
+        store.edit { prefs -> prefs[KEY_HOURLY_INTERVAL] = hours }
     }
 
     /**
      * 사용자 직접 지정 동네 이름 Flow
      */
-    val customLocationNameFlow: Flow<String> = context.weatherDataStore.data.map { prefs ->
+    val customLocationNameFlow: Flow<String> = store.data.map { prefs ->
         prefs[KEY_CUSTOM_LOCATION_NAME] ?: ""
     }
 
@@ -211,7 +277,7 @@ class WeatherDataStore(private val context: Context) {
      * 사용자 직접 지정 동네 이름 저장 (빈 문자열이면 GPS 자동 감지로 복원)
      */
     suspend fun saveCustomLocationName(name: String) {
-        context.weatherDataStore.edit { prefs ->
+        store.edit { prefs ->
             if (name.isBlank()) {
                 prefs.remove(KEY_CUSTOM_LOCATION_NAME)
             } else {

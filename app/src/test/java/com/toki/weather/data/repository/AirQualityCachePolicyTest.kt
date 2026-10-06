@@ -48,6 +48,19 @@ class AirQualityCachePolicyTest {
         assertEquals(16, result.pm25)
     }
 
+    @Test fun retainingNearbyAirDoesNotMoveWeatherOrItsSolarLocation() {
+        val previous = weather(pm10 = 20, pm25 = 16, observedAt = now - 30 * 60_000L)
+        val current = weather().copy(airQualityLatitude = 37.521, airQualityLongitude = 126.911,
+            refresh = com.toki.weather.data.model.RefreshMetadata(latitude = 37.521, longitude = 126.911,
+                locationConfirmedAt = 1234, weatherObservedAt = 5678))
+        val result = mergeAirQuality(current, AirQualityReading(-1, -1, null, failedToLoad = true), previous, now)
+        assertEquals(current.refresh.latitude, result.refresh.latitude)
+        assertEquals(current.refresh.longitude, result.refresh.longitude)
+        assertEquals(previous.airQualityLatitude, result.airQualityLatitude)
+        assertEquals(1234L, result.refresh.locationConfirmedAt)
+        org.junit.Assert.assertTrue(result.refresh.airQualityRetained)
+    }
+
     private fun weather(pm10: Int = -1, pm25: Int = -1, observedAt: Long? = null) = CachedWeather(
         currentTemp = 20,
         currentCondition = WeatherCondition.CLEAR,

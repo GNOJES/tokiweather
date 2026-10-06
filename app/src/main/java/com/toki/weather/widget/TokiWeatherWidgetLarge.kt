@@ -1,5 +1,7 @@
 package com.toki.weather.widget
 
+import com.toki.weather.data.model.forDisplay
+import com.toki.weather.util.rememberWeatherNow
 import com.toki.weather.data.model.formatTemperatureRange
 
 import android.content.Context
@@ -87,6 +89,8 @@ private fun LargeWidgetLayout(
     theme: WidgetThemeConfig,
     fontScale: Float
 ) {
+    val now by rememberWeatherNow()
+    val weather = weather.forDisplay(now)
     val hasData = weather.lastUpdated > 0L
 
     // 1. 배경색 및 글자색 계산
@@ -168,7 +172,7 @@ private fun LargeWidgetLayout(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = DateTimeUtils.todayDateWithDayOfWeekString(),
+                        text = DateTimeUtils.todayDateWithDayOfWeekString(now.toLocalDate()),
                         style = TextStyle(
                             color = subTextColorProvider,
                             fontSize = locNameSize.fixedSp(fontScale),
@@ -207,9 +211,9 @@ private fun LargeWidgetLayout(
                     Image(
                         provider = ImageProvider(currentWeatherIconRes(
                             weather.currentCondition,
-                            LocalDateTime.now(ZoneId.of("Asia/Seoul")),
-                            weather.airQualityLatitude ?: 37.5665,
-                            weather.airQualityLongitude ?: 126.9780
+                            now,
+                            weather.refresh.latitude ?: weather.airQualityLatitude ?: 37.5665,
+                            weather.refresh.longitude ?: weather.airQualityLongitude ?: 126.9780
                         )),
                         contentDescription = "현재 날씨 ${weather.currentCondition.label}",
                         modifier = GlanceModifier.size(todayIconSize)
@@ -241,7 +245,7 @@ private fun LargeWidgetLayout(
                             )
                             Spacer(modifier = GlanceModifier.width(2.5.dp))
                             Text(
-                                text = "${weather.todayPop}%",
+                                text = weather.todayPop?.let { "$it%" } ?: "—",
                                 style = TextStyle(
                                     color = subTextColorProvider,
                                     fontSize = (todayPmSize + 1.5f).fixedSp(fontScale),
@@ -361,10 +365,14 @@ private fun LargeWidgetLayout(
 
 @Composable
 private fun WidgetPopBar(
-    pop: Int,
+    pop: Int?,
     textColor: ComposeColor,
     blockSize: Dp
 ) {
+    if (pop == null) {
+        Text("—", style = TextStyle(color = ColorProvider(textColor), fontSize = 9.sp))
+        return
+    }
     val filled = when {
         pop < 20 -> 0
         pop < 40 -> 1

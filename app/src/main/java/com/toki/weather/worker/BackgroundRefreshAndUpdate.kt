@@ -7,6 +7,7 @@ data class BackgroundRefreshOutcome(
     val fetchFailure: Throwable?,
     val widgetFailures: List<Throwable>
 ) {
+    val weatherSaved: Boolean get() = fetchFailure == null
     val succeeded: Boolean get() = fetchFailure == null && widgetFailures.isEmpty()
 }
 

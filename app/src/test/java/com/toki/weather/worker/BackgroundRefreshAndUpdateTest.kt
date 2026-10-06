@@ -30,6 +30,7 @@ class BackgroundRefreshAndUpdateTest {
         assertNull(outcome.fetchFailure)
         assertEquals(listOf(error), outcome.widgetFailures)
         assertFalse(outcome.succeeded)
+        assertTrue(outcome.weatherSaved) // display retry must not repeat the API fetch
     }
 
     @Test fun successfulFetchIsSavedBeforeWidgetsAreRedrawn() = runBlocking {

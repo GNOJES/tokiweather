@@ -60,7 +60,12 @@ import com.toki.weather.util.currentWeatherIconRes
 import com.toki.weather.widget.TokiWeatherWidget
 import com.toki.weather.widget.TokiWeatherWidgetLarge
 import com.toki.weather.worker.WeatherWorkScheduler
-import com.toki.weather.worker.refreshAndUpdate
+import com.toki.weather.worker.WidgetDisplayException
+import com.toki.weather.worker.requestWeatherWidgetDisplay
+import com.toki.weather.data.model.RefreshSource
+import com.toki.weather.worker.saveSettingsAndRefresh
+import com.toki.weather.util.rememberWeatherNow
+import com.toki.weather.data.model.forDisplay
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -209,26 +214,26 @@ fun SettingsScreen(
                                         backgroundAlpha = currentAlpha,
                                         textColorHex = currentTextColor
                                     )
-                                    dataStore.saveTheme(updatedTheme)
-                                    dataStore.saveUpdateInterval(currentInterval)
-                                    dataStore.saveCustomLocationName(customLocationName.trim())
-                                    WeatherWorkScheduler.schedule(context, currentInterval.toLong())
-                                    try {
-                                        withContext(Dispatchers.IO) {
-                                            refreshAndUpdate(
-                                                fetch = { WeatherRepository(context).fetchAndSave() },
-                                                updateWidgets = {
-                                                    TokiWeatherWidget().updateAll(context)
-                                                    TokiWeatherWidgetLarge().updateAll(context)
-                                                }
-                                            )
-                                        }
-                                        Toast.makeText(context, "설정 저장 및 날씨 갱신 완료", Toast.LENGTH_SHORT).show()
-                                    } catch (e: CancellationException) {
-                                        throw e
-                                    } catch (_: Exception) {
-                                        Toast.makeText(context, "설정은 저장됐지만 날씨 갱신에 실패했습니다.", Toast.LENGTH_LONG).show()
+                                    val outcome = withContext(Dispatchers.IO) {
+                                        saveSettingsAndRefresh(
+                                            save = {
+                                                dataStore.saveTheme(updatedTheme)
+                                                dataStore.saveUpdateInterval(currentInterval)
+                                                dataStore.saveCustomLocationName(customLocationName.trim())
+                                                WeatherWorkScheduler.schedule(context, currentInterval.toLong())
+                                            },
+                                            fetch = { WeatherRepository(context).fetchAndSave(source = RefreshSource.SETTINGS,
+                                                onWeatherSaved = { requestWeatherWidgetDisplay(context) }) },
+                                            render = { requestWeatherWidgetDisplay(context) }
+                                        )
                                     }
+                                    val message = when {
+                                        outcome.weatherFailure != null && outcome.displayFailure != null -> "설정은 저장됐습니다. 날씨 조회와 위젯 표시 요청에 실패했습니다."
+                                        outcome.weatherFailure != null -> "설정을 저장하고 위젯 표시를 요청했습니다. 날씨는 이전 자료를 사용합니다."
+                                        outcome.displayFailure != null -> "설정과 날씨는 저장됐습니다. 위젯 표시 요청에 실패했습니다."
+                                        else -> "설정 저장 및 날씨 갱신 완료"
+                                    }
+                                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                                     onSaved?.invoke() ?: (context as? android.app.Activity)?.finish()
                                 } catch (e: CancellationException) {
                                     throw e
@@ -799,6 +804,8 @@ fun WidgetPreviewBox(
     textColorHex: String,
     preset: WidgetPreset = WidgetPreset.SAMSUNG_2X1
 ) {
+    val now by rememberWeatherNow()
+    val weather = weather.forDisplay(now)
     val currentDensity = LocalDensity.current
 
     CompositionLocalProvider(
@@ -814,18 +821,18 @@ fun WidgetPreviewBox(
         val displayLocName = when {
             customLocationName.isNotBlank() -> customLocationName
             weather.lastUpdated > 0 && weather.locationName.isNotBlank() -> weather.locationName
-            else -> "영등포동7가"
+            else -> "위치 확인 중"
         }
 
-        val currentCondition = if (weather.lastUpdated > 0) weather.currentCondition else WeatherCondition.CLEAR
+        val currentCondition = if (weather.lastUpdated > 0) weather.currentCondition else WeatherCondition.UNKNOWN
         val currentIconRes = currentWeatherIconRes(
             currentCondition,
-            LocalDateTime.now(ZoneId.of("Asia/Seoul")),
-            weather.airQualityLatitude ?: 37.5665,
-            weather.airQualityLongitude ?: 126.9780
+            now,
+            weather.refresh.latitude ?: weather.airQualityLatitude ?: 37.5665,
+            weather.refresh.longitude ?: weather.airQualityLongitude ?: 126.9780
         )
-        val tomorrowCondition = if (weather.lastUpdated > 0) weather.tomorrowCondition else WeatherCondition.OVERCAST
-        val dayAfterCondition = if (weather.lastUpdated > 0) weather.dayAfterCondition else WeatherCondition.CLOUDY
+        val tomorrowCondition = if (weather.lastUpdated > 0) weather.tomorrowCondition else WeatherCondition.UNKNOWN
+        val dayAfterCondition = if (weather.lastUpdated > 0) weather.dayAfterCondition else WeatherCondition.UNKNOWN
 
         // 스마트폰 배경화면 시뮬레이션 컨테이너
         Box(
@@ -836,170 +843,16 @@ fun WidgetPreviewBox(
                 .padding(vertical = 16.dp, horizontal = 12.dp),
             contentAlignment = Alignment.Center
         ) {
-            if (preset == WidgetPreset.SAMSUNG_2X1) {
-                // ─── 1. 삼성 One UI 2×1 가로형 위젯 (184×96dp) ───
-                val previewWidth = 184.dp
-                val previewHeight = 96.dp
-                val horizPadding = 10.dp
-                val vertPadding = 5.dp
-                val vertSpacer = 3.dp
-                val interColSpacer = 6.dp
-                val forecastSpacer = 4.dp
-
-                val totalContentWidth = previewWidth - (horizPadding * 2) - interColSpacer
-                val todayWidth = totalContentWidth * (5f / 11f)
-                val rightWidth = totalContentWidth * (6f / 11f)
-                val forecastItemWidth = (rightWidth - forecastSpacer) / 2f
-
-                val todayIconSize = 30.dp
-                val todayTempSize = 17.sp
-                val todayPmSize = 9.5.sp
-                val locNameSize = 9.5.sp
-                val forecastIconSize = 18.dp
-                val subTempSize = 8.sp
-                val popBlockSize = 3.5.dp
-
-                Box(
-                    modifier = Modifier
-                        .width(previewWidth)
-                        .heightIn(min = previewHeight)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(parsedBg.copy(alpha = bgAlpha))
-                        .padding(horizontal = horizPadding, vertical = vertPadding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        // [상단: 날씨 정보 행] 오늘 5 : 내일 3 : 모레 3 비율
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.Top
-                        ) {
-                            // 좌측: 오늘 (폭 = todayWidth, 5/11)
-                            Column(
-                                modifier = Modifier.width(todayWidth),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Image(
-                                    painter = painterResource(currentIconRes),
-                                    contentDescription = currentCondition.label,
-                                    modifier = Modifier.size(todayIconSize)
-                                )
-                                Spacer(modifier = Modifier.height(1.dp))
-                                Text(
-                                    text = if (weather.lastUpdated > 0) "${weather.currentTemp}°" else "25°",
-                                    fontSize = todayTempSize,
-                                    fontWeight = FontWeight.Bold,
-                                    color = parsedText,
-                                    maxLines = 1
-                                )
-                                Spacer(modifier = Modifier.height(1.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    val pm10Val = if (weather.lastUpdated > 0 && weather.pm10 >= 0) weather.pm10 else 42
-                                    val pm25Val = if (weather.lastUpdated > 0 && weather.pm25 >= 0) weather.pm25 else 41
-                                    val pm10Color = if (weather.lastUpdated > 0 && weather.pm10 >= 0) weather.getPm10Color() else Color(0xFF43A047)
-                                    val pm25Color = if (weather.lastUpdated > 0 && weather.pm25 >= 0) weather.getPm25Color() else Color(0xFFFB8C00)
-
-                                    Text(text = "$pm10Val", fontSize = todayPmSize, fontWeight = FontWeight.Bold, color = pm10Color, maxLines = 1)
-                                    Text(text = " · ", fontSize = (todayPmSize.value - 1).sp, fontWeight = FontWeight.Bold, color = subText, maxLines = 1)
-                                    Text(text = "$pm25Val", fontSize = todayPmSize, fontWeight = FontWeight.Bold, color = pm25Color, maxLines = 1)
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.width(interColSpacer))
-
-                            // 우측: 상단 지역명 + 하단 내일/모레 예보 (폭 = rightWidth, 6/11)
-                            Column(
-                                modifier = Modifier.width(rightWidth),
-                                horizontalAlignment = Alignment.End
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().padding(end = 5.dp),
-                                    horizontalArrangement = Arrangement.End,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_location_pin),
-                                        contentDescription = "위치",
-                                        tint = subText,
-                                        modifier = Modifier.size(10.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(1.5.dp))
-                                    Text(
-                                        text = displayLocName,
-                                        fontSize = locNameSize,
-                                        fontWeight = FontWeight.Bold,
-                                        color = subText,
-                                        maxLines = 1,
-                                        textAlign = TextAlign.End,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(3.dp))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    // 내일
-                                    Column(
-                                        modifier = Modifier.width(forecastItemWidth),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Text(text = "내일", fontSize = (subTempSize.value - 0.5f).sp, color = subText, maxLines = 1)
-                                        Spacer(modifier = Modifier.height(1.dp))
-                                        Image(painter = painterResource(tomorrowCondition.iconRes), contentDescription = tomorrowCondition.label, modifier = Modifier.size(forecastIconSize))
-                                        Spacer(modifier = Modifier.height(1.dp))
-                                        Text(text = if (weather.lastUpdated > 0) formatTemperatureRange(weather.tomorrowMin, weather.tomorrowMax, "~") else "18~27°", fontSize = subTempSize, color = parsedText, maxLines = 1, softWrap = false)
-                                    }
-
-                                    Spacer(modifier = Modifier.width(forecastSpacer))
-
-                                    // 모레
-                                    Column(
-                                        modifier = Modifier.width(forecastItemWidth),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Text(text = "모레", fontSize = (subTempSize.value - 0.5f).sp, color = subText, maxLines = 1)
-                                        Spacer(modifier = Modifier.height(1.dp))
-                                        Image(painter = painterResource(dayAfterCondition.iconRes), contentDescription = dayAfterCondition.label, modifier = Modifier.size(forecastIconSize))
-                                        Spacer(modifier = Modifier.height(1.dp))
-                                        Text(text = if (weather.lastUpdated > 0) formatTemperatureRange(weather.dayAfterMin, weather.dayAfterMax, "~") else "19~29°", fontSize = subTempSize, color = parsedText, maxLines = 1, softWrap = false)
-                                    }
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(vertSpacer))
-
-                        // [하단: 강수확률 바 행]
-                        Row(
-                            modifier = Modifier.fillMaxWidth().wrapContentHeight(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(modifier = Modifier.width(todayWidth), contentAlignment = Alignment.Center) {
-                                ComposePopBar(pop = if (weather.lastUpdated > 0) weather.todayPop else 10, textColor = parsedText, blockSize = popBlockSize)
-                            }
-                            Spacer(modifier = Modifier.width(interColSpacer))
-                            Row(modifier = Modifier.width(rightWidth), verticalAlignment = Alignment.CenterVertically) {
-                                Box(modifier = Modifier.width(forecastItemWidth), contentAlignment = Alignment.Center) {
-                                    ComposePopBar(pop = if (weather.lastUpdated > 0) weather.tomorrowPop else 30, textColor = parsedText, blockSize = popBlockSize)
-                                }
-                                Spacer(modifier = Modifier.width(forecastSpacer))
-                                Box(modifier = Modifier.width(forecastItemWidth), contentAlignment = Alignment.Center) {
-                                    ComposePopBar(pop = if (weather.lastUpdated > 0) weather.dayAfterPop else 30, textColor = parsedText, blockSize = popBlockSize)
-                                }
-                            }
-                        }
-                    }
+            if (weather.lastUpdated <= 0) {
+                Box(Modifier.size(if (preset == WidgetPreset.SAMSUNG_2X1) 234.67.dp else 138.dp,
+                    if (preset == WidgetPreset.SAMSUNG_2X1) 98.67.dp else 187.dp)
+                    .clip(RoundedCornerShape(16.dp)).background(parsedBg.copy(alpha = bgAlpha)),
+                    contentAlignment = Alignment.Center) {
+                    Text("위치 확인 중 · 날씨 불러오는 중…", color = parsedText, fontSize = 11.sp,
+                        textAlign = TextAlign.Center, modifier = Modifier.padding(9.dp))
                 }
+            } else if (preset == WidgetPreset.SAMSUNG_2X1) {
+                CompactWidgetPreview(weather, displayLocName, currentIconRes, parsedBg.copy(alpha = bgAlpha), parsedText, now)
             } else {
                 // ─── 2. 노바런처 8×8 (3×2) 세로 2단 위젯 (138×187dp) ───
                 val previewWidth = 138.dp
@@ -1071,13 +924,13 @@ fun WidgetPreviewBox(
                                     verticalArrangement = Arrangement.Center
                                 ) {
                                     Text(
-                                        text = if (weather.lastUpdated > 0) "${weather.currentTemp}°" else "27°",
+                                        text = if (weather.lastUpdated > 0) "${weather.currentTemp}°" else "—",
                                         fontSize = 27.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = parsedText,
                                         maxLines = 1
                                     )
-                                    val todayPopVal = if (weather.lastUpdated > 0) weather.todayPop else 10
+                                    val todayPopVal = if (weather.lastUpdated > 0) weather.todayPop else null
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(
                                             painter = painterResource(R.drawable.ic_rain_drop),
@@ -1087,7 +940,7 @@ fun WidgetPreviewBox(
                                         )
                                         Spacer(modifier = Modifier.width(2.5.dp))
                                         Text(
-                                            text = "$todayPopVal%",
+                                            text = todayPopVal?.let { "$it%" } ?: "—",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = subText,
@@ -1096,8 +949,8 @@ fun WidgetPreviewBox(
                                     }
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
-                                val pm10Color = if (weather.lastUpdated > 0 && weather.pm10 >= 0) weather.getPm10Color() else Color(0xFF4AA3FF)
-                                val pm25Color = if (weather.lastUpdated > 0 && weather.pm25 >= 0) weather.getPm25Color() else Color(0xFF4AA3FF)
+                                val pm10Color = if (weather.lastUpdated > 0 && weather.pm10 >= 0) weather.getPm10Color() else Color(0xFFB0B0B0)
+                                val pm25Color = if (weather.lastUpdated > 0 && weather.pm25 >= 0) weather.getPm25Color() else Color(0xFFB0B0B0)
                                 Column(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center
@@ -1140,7 +993,7 @@ fun WidgetPreviewBox(
                                 )
                                 Spacer(modifier = Modifier.height(1.dp))
                                 Text(
-                                    text = if (weather.lastUpdated > 0) formatTemperatureRange(weather.tomorrowMin, weather.tomorrowMax) else "19° / 30°",
+                                    text = if (weather.lastUpdated > 0) formatTemperatureRange(weather.tomorrowMin, weather.tomorrowMax) else "— / —",
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = parsedText,
@@ -1148,7 +1001,7 @@ fun WidgetPreviewBox(
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 ComposePopBar(
-                                    pop = if (weather.lastUpdated > 0) weather.tomorrowPop else 20,
+                                    pop = if (weather.lastUpdated > 0) weather.tomorrowPop else null,
                                     textColor = parsedText,
                                     blockSize = 4.dp
                                 )
@@ -1168,7 +1021,7 @@ fun WidgetPreviewBox(
                                 )
                                 Spacer(modifier = Modifier.height(1.dp))
                                 Text(
-                                    text = if (weather.lastUpdated > 0) formatTemperatureRange(weather.dayAfterMin, weather.dayAfterMax) else "19° / 29°",
+                                    text = if (weather.lastUpdated > 0) formatTemperatureRange(weather.dayAfterMin, weather.dayAfterMax) else "— / —",
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = parsedText,
@@ -1176,7 +1029,7 @@ fun WidgetPreviewBox(
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 ComposePopBar(
-                                    pop = if (weather.lastUpdated > 0) weather.dayAfterPop else 10,
+                                    pop = if (weather.lastUpdated > 0) weather.dayAfterPop else null,
                                     textColor = parsedText,
                                     blockSize = 4.dp
                                 )
@@ -1195,10 +1048,11 @@ fun WidgetPreviewBox(
  */
 @Composable
 fun ComposePopBar(
-    pop: Int,
+    pop: Int?,
     textColor: Color,
     blockSize: androidx.compose.ui.unit.Dp = 4.dp
 ) {
+    if (pop == null) { Text("—", color = textColor, fontSize = 9.sp); return }
     val filled = when {
         pop < 20 -> 0
         pop < 40 -> 1

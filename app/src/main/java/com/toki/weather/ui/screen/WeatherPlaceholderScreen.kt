@@ -1,5 +1,7 @@
 package com.toki.weather.ui.screen
 
+import com.toki.weather.data.model.forDisplay
+import com.toki.weather.util.rememberWeatherNow
 import com.toki.weather.data.model.formatTemperatureRange
 import com.toki.weather.data.model.asTemperature
 
@@ -35,6 +37,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -75,9 +78,11 @@ fun WeatherPlaceholderScreen(
     onHourlyIntervalSelected: (Int) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val now by rememberWeatherNow((context as? androidx.lifecycle.LifecycleOwner)?.lifecycle)
+    val weather = weather.forDisplay(now)
     val scrollState = rememberScrollState()
-    val latitude = weather.airQualityLatitude ?: 37.5665
-    val longitude = weather.airQualityLongitude ?: 126.9780
+    val latitude = weather.refresh.latitude ?: weather.airQualityLatitude ?: 37.5665
+    val longitude = weather.refresh.longitude ?: weather.airQualityLongitude ?: 126.9780
 
     Column(
         modifier = Modifier
@@ -102,7 +107,7 @@ fun WeatherPlaceholderScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = DateTimeUtils.todayDateWithDayOfWeekString(),
+                        text = DateTimeUtils.todayDateWithDayOfWeekString(now.toLocalDate()),
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -153,7 +158,7 @@ fun WeatherPlaceholderScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Image(
-                            painter = painterResource(weatherIconRes(weather.currentCondition, LocalDateTime.now(ZoneId.of("Asia/Seoul")), latitude, longitude)),
+                            painter = painterResource(weatherIconRes(weather.currentCondition, now, latitude, longitude)),
                             contentDescription = weather.currentCondition.label,
                             modifier = Modifier.size(78.dp)
                         )
@@ -193,10 +198,11 @@ fun WeatherPlaceholderScreen(
                                     modifier = Modifier.size(13.dp)
                                 )
                                 Spacer(modifier = Modifier.width(2.dp))
-                                Text("${weather.todayPop}%", fontSize = 11.sp, color = Color(0xFF4AA3FF))
+                                Text(weather.todayPop?.let { "$it%" } ?: "—", fontSize = 11.sp, color = Color(0xFF4AA3FF))
                             }
                         }
                     }
+                    RefreshStatusLine(weather, now.atZone(ZoneId.of("Asia/Seoul")).toInstant().toEpochMilli())
                 }
             }
 

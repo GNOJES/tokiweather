@@ -26,7 +26,9 @@ data class LocationInfo(
     val ny: Int,
     val locationName: String,
     val latitude: Double? = null,
-    val longitude: Double? = null
+    val longitude: Double? = null,
+    val confirmedAt: Long? = null,
+    val addressSelection: AddressSelection? = null
 )
 
 object LocationHelper {
@@ -137,14 +139,16 @@ object LocationHelper {
         return LocationInfo(
             nx = grid.nx,
             ny = grid.ny,
-            locationName = name,
+            locationName = name.name,
+            addressSelection = name,
             latitude = location.latitude,
-            longitude = location.longitude
+            longitude = location.longitude,
+            confirmedAt = location.time.takeIf { it > 0L }
         )
     }
 
     /** 먼 지번 주소를 현재 동으로 오인하지 않도록 거리와 주소 필드를 함께 검사한다. */
-    private suspend fun getAdminAreaName(context: Context, lat: Double, lon: Double): String {
+    private suspend fun getAdminAreaName(context: Context, lat: Double, lon: Double): AddressSelection {
         return try {
             withTimeoutOrNull(4_000L) {
                 suspendCancellableCoroutine { cont ->
@@ -162,19 +166,19 @@ object LocationHelper {
                                         locality = address.locality
                                     )
                                 }
-                                val name = LocationSelection.addressName(lat, lon, candidates)
+                                val name = LocationSelection.selectAddress(lat, lon, candidates)
                                 if (cont.isActive) cont.resume(name)
                             }
                             override fun onError(errorMessage: String?) {
-                                if (cont.isActive) cont.resume("현재 위치")
+                                if (cont.isActive) cont.resume(AddressSelection("현재 위치"))
                             }
                         })
                 }
-            } ?: "현재 위치"
+            } ?: AddressSelection("현재 위치")
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
-            "현재 위치"
+            AddressSelection("현재 위치")
         }
     }
 

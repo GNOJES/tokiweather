@@ -2,6 +2,8 @@ package com.toki.weather.data.repository
 
 import android.util.Log
 import com.toki.weather.BuildConfig
+import com.toki.weather.data.model.RefreshStage
+import com.toki.weather.data.model.RefreshState
 import com.toki.weather.data.remote.AirKoreaResponse
 import com.toki.weather.data.remote.AirQualityApiService
 import com.toki.weather.data.remote.AirQualityStation
@@ -19,7 +21,8 @@ data class AirQualityReading(
     val pm10: Int,
     val pm25: Int,
     val observedAt: Long?,
-    val failedToLoad: Boolean = false
+    val failedToLoad: Boolean = false,
+    val timedOut: Boolean = false
 )
 
 class AirQualityRepository(
@@ -36,12 +39,14 @@ class AirQualityRepository(
         return reading.pm10 to reading.pm25
     }
 
-    suspend fun fetchDetailed(latitude: Double, longitude: Double): AirQualityReading {
+    suspend fun fetchDetailed(latitude: Double, longitude: Double,
+        onStage: suspend (RefreshStage, RefreshState, Long) -> Unit = { _, _, _ -> }
+    ): AirQualityReading {
         if (serviceKey.isBlank() || !latitude.isFinite() || !longitude.isFinite() ||
             latitude !in -90.0..90.0 || longitude !in -180.0..180.0) return AirQualityReading(-1, -1, null)
         var phase = "stations"
         return try {
-            val nearest = stations().mapNotNull { station ->
+            val nearest = timed(RefreshStage.AIR_STATIONS, onStage) { stations() }.mapNotNull { station ->
                 val lat = station.dmX?.toDoubleOrNull() ?: return@mapNotNull null
                 val lon = station.dmY?.toDoubleOrNull() ?: return@mapNotNull null
                 if (station.stationName.isNullOrBlank() || !lat.isFinite() || !lon.isFinite() ||
@@ -50,8 +55,9 @@ class AirQualityRepository(
             }.minByOrNull { it.second }?.takeIf { it.second <= 50.0 }?.first
                 ?: return AirQualityReading(-1, -1, null)
             phase = "measurement"
-            val measurement = retryOnceOnNetworkFailure { api.getAirQuality(serviceKey, nearest.stationName!!) }
-                .checkedItems().firstOrNull() ?: return AirQualityReading(-1, -1, null)
+            val measurement = timed(RefreshStage.AIR_MEASUREMENT, onStage) {
+                retryOnceOnNetworkFailure { api.getAirQuality(serviceKey, nearest.stationName!!) }.checkedItems()
+            }.firstOrNull() ?: return AirQualityReading(-1, -1, null)
             phase = "timestamp"
             val measuredAt = measurement.dataTime?.let {
                 LocalDateTime.parse(it, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
@@ -70,6 +76,23 @@ class AirQualityRepository(
             // 예외 메시지에는 URL과 인증키가 포함될 수 있으므로 유형만 기록한다.
             if (BuildConfig.DEBUG) runCatching { Log.w("AirQualityRepository", "$phase failed: ${e.javaClass.simpleName}") }
             AirQualityReading(-1, -1, null, failedToLoad = true)
+        }
+    }
+
+    private suspend fun <T> timed(stage: RefreshStage,
+        record: suspend (RefreshStage, RefreshState, Long) -> Unit, block: suspend () -> T): T {
+        record(stage, RefreshState.STARTED, 0)
+        val start = System.nanoTime()
+        try { return block().also { record(stage, RefreshState.SUCCESS, (System.nanoTime() - start) / 1_000_000) } }
+        catch (e: Exception) {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                record(stage, when (e) {
+                    is kotlinx.coroutines.TimeoutCancellationException -> RefreshState.TIMEOUT
+                    is CancellationException -> RefreshState.CANCELLED
+                    else -> RefreshState.FAILED
+                }, (System.nanoTime() - start) / 1_000_000)
+            }
+            throw e
         }
     }
 

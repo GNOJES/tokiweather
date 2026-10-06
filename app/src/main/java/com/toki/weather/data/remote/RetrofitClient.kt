@@ -14,8 +14,9 @@ object RetrofitClient {
     private const val BASE_URL = "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/"
 
     private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .callTimeout(12, TimeUnit.SECONDS)
         .build()
 
     private val retrofit = Retrofit.Builder()
@@ -28,8 +29,9 @@ object RetrofitClient {
 
     // 인증키가 쿼리에 포함되므로 대기질 요청에는 HTTP 로깅을 사용하지 않는다.
     private val airQualityHttpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .callTimeout(12, TimeUnit.SECONDS)
         .build()
 
     private val airQualityRetrofit = Retrofit.Builder()

@@ -4,7 +4,13 @@ import android.content.Context
 import android.util.Log
 import com.toki.weather.BuildConfig
 import com.toki.weather.data.cache.WeatherDataStore
-import com.toki.weather.data.model.CachedWeather
+import com.toki.weather.data.model.*
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.TimeoutCancellationException
+import java.time.ZoneId
 import com.toki.weather.data.remote.KmaResponse
 import com.toki.weather.data.remote.RetrofitClient
 import com.toki.weather.data.remote.forecastTemperature
@@ -50,108 +56,168 @@ class WeatherRepository(private val context: Context) {
     /**
      * API에서 날씨 및 대기질 데이터를 가져와 캐시에 저장
      */
-    suspend fun fetchAndSave(allowSavedLocation: Boolean = false): Result<CachedWeather> {
+    suspend fun fetchAndSave(
+        allowSavedLocation: Boolean = false,
+        source: RefreshSource = if (allowSavedLocation) RefreshSource.AUTOMATIC else RefreshSource.MANUAL,
+        onWeatherSaved: (suspend () -> Unit)? = null
+    ): Result<CachedWeather> {
+        val trace = RefreshTrace(dataStore, dataStore.beginRequest(), source)
+        val start = System.nanoTime()
+        var weatherSaved = false
+        trace.event(RefreshStage.REQUEST, RefreshState.STARTED)
         return try {
-            // 0. GPS 기반 위치 및 지역 이름 획득
-            val locInfo = resolveWeatherRefreshLocation(
-                allowSavedLocation = allowSavedLocation,
+            val completed = withTimeoutOrNull(40_000L) {
+                val forecast = withTimeout(25_000L) { fetchForecast(trace, allowSavedLocation) }
+                val accepted = publishWeatherThenAir(forecast,
+                    publish = { value ->
+                        val saveStart = System.nanoTime()
+                        trace.event(RefreshStage.WEATHER_SAVE, RefreshState.STARTED)
+                        val saved = dataStore.commit(trace.id) { previous ->
+                            mergeAirQuality(value, AirQualityReading(-1, -1, null, failedToLoad = true),
+                                previous, System.currentTimeMillis()).let {
+                                it.copy(refresh = it.refresh.copy(airQualityPending = true))
+                            }
+                        }
+                        weatherSaved = saved
+                        trace.event(RefreshStage.WEATHER_SAVE,
+                            if (saved) RefreshState.SUCCESS else RefreshState.SUPERSEDED,
+                            (System.nanoTime() - saveStart) / 1_000_000)
+                        saved
+                    },
+                    onWeatherPublished = {
+                        // A display error must not invalidate a successful weather commit.
+                        try {
+                            val callback = onWeatherSaved
+                            if (callback != null) {
+                                val requested = withTimeoutOrNull(5_000L) { callback(); true } ?: false
+                                trace.event(RefreshStage.WIDGET,
+                                    if (requested) RefreshState.REQUESTED else RefreshState.TIMEOUT)
+                            }
+                        } catch (e: CancellationException) { throw e }
+                        catch (_: Exception) { trace.event(RefreshStage.WIDGET, RefreshState.FAILED) }
+                    },
+                    fetchAir = {
+                        trace.event(RefreshStage.AIR_QUALITY, RefreshState.STARTED)
+                        airQualityRepository.fetchDetailed(forecast.refresh.latitude!!, forecast.refresh.longitude!!) {
+                            phase, state, elapsed -> trace.event(phase, state, elapsed)
+                        }
+                    },
+                    finishAir = { reading ->
+                        trace.event(RefreshStage.AIR_QUALITY, when {
+                            reading.timedOut -> RefreshState.TIMEOUT
+                            reading.failedToLoad -> RefreshState.FAILED
+                            reading.pm10 < 0 && reading.pm25 < 0 -> RefreshState.MISSING
+                            else -> RefreshState.SUCCESS
+                        })
+                        val saveStart = System.nanoTime()
+                        trace.event(RefreshStage.AIR_SAVE, RefreshState.STARTED)
+                        var retained = false
+                        val saved = dataStore.commit(trace.id, onlyIfCurrent = true) { current ->
+                            // Only this request's weather and coordinates may receive its air result.
+                            mergeAirQuality(current.copy(airQualityLatitude = current.refresh.latitude,
+                                airQualityLongitude = current.refresh.longitude), reading, current,
+                                System.currentTimeMillis()).also { retained = it.refresh.airQualityRetained }
+                        }
+                        trace.event(RefreshStage.AIR_SAVE, when {
+                            !saved -> RefreshState.SUPERSEDED
+                            retained -> RefreshState.RETAINED
+                            else -> RefreshState.SUCCESS
+                        }, (System.nanoTime() - saveStart) / 1_000_000)
+                    })
+                trace.event(RefreshStage.REQUEST, if (accepted) RefreshState.SUCCESS else RefreshState.SUPERSEDED,
+                    (System.nanoTime() - start) / 1_000_000)
+                Result.success(dataStore.weatherFlow.firstOrNull() ?: forecast)
+            }
+            completed ?: run {
+                clearPendingAir(trace.id)
+                trace.event(RefreshStage.REQUEST, RefreshState.TIMEOUT, (System.nanoTime() - start) / 1_000_000)
+                if (weatherSaved) Result.success(dataStore.weatherFlow.firstOrNull()!!) else Result.failure(RefreshDeadlineException())
+            }
+        } catch (e: CancellationException) {
+            withContext(NonCancellable) {
+                clearPendingAir(trace.id)
+                trace.event(RefreshStage.REQUEST, if (e is TimeoutCancellationException) RefreshState.TIMEOUT else RefreshState.CANCELLED,
+                    (System.nanoTime() - start) / 1_000_000)
+            }
+            // The local weather deadline is a refresh failure, caller cancellation still propagates.
+            if (e is TimeoutCancellationException) Result.failure(RefreshDeadlineException()) else throw e
+        } catch (e: Exception) {
+            clearPendingAir(trace.id)
+            trace.event(RefreshStage.REQUEST, if (weatherSaved) RefreshState.SUCCESS else RefreshState.FAILED, (System.nanoTime() - start) / 1_000_000)
+            Log.e(TAG, "Weather refresh failed: ${e.javaClass.simpleName}")
+            if (weatherSaved) Result.success(dataStore.weatherFlow.firstOrNull()!!) else Result.failure(e)
+        }
+    }
+
+    private suspend fun clearPendingAir(id: Long) {
+        dataStore.commit(id, onlyIfCurrent = true) { current ->
+            mergeAirQuality(current.copy(airQualityLatitude = current.refresh.latitude,
+                airQualityLongitude = current.refresh.longitude),
+                AirQualityReading(-1, -1, null, failedToLoad = true), current, System.currentTimeMillis())
+        }
+    }
+
+    private suspend fun fetchForecast(trace: RefreshTrace, allowSavedLocation: Boolean): CachedWeather {
+        var usedSavedLocation = false
+        val locInfo = trace.stage(RefreshStage.LOCATION) {
+            resolveWeatherRefreshLocation(allowSavedLocation,
                 currentLocation = { LocationHelper.getCurrentLocationInfo(context) },
                 savedLocation = {
-                    savedWeatherLocation(dataStore.weatherFlow.firstOrNull())?.also {
-                        Log.w(TAG, "Fresh location unavailable; refreshing last confirmed region")
-                    }
-                }
-            )
-            val customName = try {
-                dataStore.customLocationNameFlow.firstOrNull()?.trim() ?: ""
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) { "" }
-            val finalLocationName = if (customName.isNotBlank()) customName else locInfo.locationName
-            Log.d(TAG, "Current location: $finalLocationName (GPS: ${locInfo.locationName}, custom: $customName, nx=${locInfo.nx}, ny=${locInfo.ny})")
-
-            // 1. 한 번 잡은 시각으로 모든 발표 시각과 예보 날짜를 계산한다.
-            val now = LocalDateTime.now()
-            val (ncstDate, ncstTime) = DateTimeUtils.getUltraSrtNcstBaseDateTime(now)
-            val ncstResponse = api.getUltraSrtNcst(
-                serviceKey = serviceKey,
-                baseDate = ncstDate,
-                baseTime = ncstTime,
-                nx = locInfo.nx,
-                ny = locInfo.ny
-            )
-
-            // 2. 단기예보 (내일/모레 TMN, TMX, SKY, PTY)
-            val (fcstDate, fcstTime) = DateTimeUtils.getVilageFcstBaseDateTime(now)
-            val latestItems = fetchVilageItems(fcstDate, fcstTime, locInfo.nx, locInfo.ny)
-
-            // 새 발표가 자정 등 미래 시각부터 시작하면 현재 시각의 SKY가 빠질 수 있다.
-            // 직전 발표의 현재 시각 예보만 보완하고, 실패해도 나머지 갱신은 유지한다.
-            val currentDate = now.format(DateTimeFormatter.BASIC_ISO_DATE)
-            val currentHour = String.format("%02d00", now.hour)
-            val previousIssueItems = if (selectCurrentForecastMoment(latestItems, currentDate, currentHour).sky == null) {
-                val (previousDate, previousTime) = DateTimeUtils.getPreviousVilageFcstBaseDateTime(now)
-                try {
-                    fetchVilageItems(previousDate, previousTime, locInfo.nx, locInfo.ny)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.w(TAG, "Previous short-term forecast unavailable: ${e.javaClass.simpleName}")
-                    emptyList()
-                }
-            } else emptyList()
-
-            // 초단기예보는 가까운 6시간의 날씨와 강수확률을 보완한다.
-            // 일시적으로 실패해도 단기예보만으로 갱신을 계속한다.
-            var ultraFcstResponse: KmaResponse? = null
+                    savedWeatherLocation(dataStore.weatherFlow.firstOrNull())?.also { usedSavedLocation = true }
+                })
+        }
+        locInfo.addressSelection?.let {
+            dataStore.saveAddressDiagnostics(com.toki.weather.util.AddressDiagnostics(
+                locInfo.confirmedAt ?: System.currentTimeMillis(), it))
+        }
+        if (usedSavedLocation) trace.event(RefreshStage.LOCATION, RefreshState.RETAINED)
+        val customName = dataStore.customLocationNameFlow.firstOrNull()?.trim().orEmpty()
+        val name = customName.ifBlank { locInfo.locationName }
+        val latitude = requireNotNull(locInfo.latitude)
+        val longitude = requireNotNull(locInfo.longitude)
+        val now = LocalDateTime.now(ZoneId.of("Asia/Seoul"))
+        val (ncstDate, ncstTime) = DateTimeUtils.getUltraSrtNcstBaseDateTime(now)
+        val ncst = trace.stage(RefreshStage.OBSERVATION) {
+            api.getUltraSrtNcst(serviceKey = serviceKey, baseDate = ncstDate, baseTime = ncstTime,
+                nx = locInfo.nx, ny = locInfo.ny).also { requireCurrentTemperature(requireKmaItems(it)) }
+        }
+        val (date, time) = DateTimeUtils.getVilageFcstBaseDateTime(now)
+        val latest = trace.stage(RefreshStage.SHORT_FORECAST) { fetchVilageItems(date, time, locInfo.nx, locInfo.ny) }
+        val today = now.format(DateTimeFormatter.BASIC_ISO_DATE)
+        val hour = "%02d00".format(now.hour)
+        val previous = if (selectCurrentForecastMoment(latest, today, hour).sky == null) {
+            val (oldDate, oldTime) = DateTimeUtils.getPreviousVilageFcstBaseDateTime(now)
+            try {
+                withTimeoutOrNull(4_000L) {
+                    trace.stage(RefreshStage.PREVIOUS_FORECAST) { fetchVilageItems(oldDate, oldTime, locInfo.nx, locInfo.ny) }
+                }.orEmpty()
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { emptyList() }
+        } else emptyList()
+        var ultra: KmaResponse? = null
+        withTimeoutOrNull(4_000L) {
             for (candidate in listOf(now, now.minusHours(1))) {
                 val (ultraDate, ultraTime) = DateTimeUtils.getUltraSrtFcstBaseDateTime(candidate)
                 try {
-                    val response = api.getUltraSrtFcst(
-                        serviceKey = serviceKey,
-                        baseDate = ultraDate,
-                        baseTime = ultraTime,
-                        nx = locInfo.nx,
-                        ny = locInfo.ny
-                    )
-                    requireKmaItems(response)
-                    ultraFcstResponse = response
+                    ultra = trace.stage(RefreshStage.ULTRA_FORECAST) {
+                        api.getUltraSrtFcst(serviceKey = serviceKey, baseDate = ultraDate, baseTime = ultraTime,
+                            nx = locInfo.nx, ny = locInfo.ny).also { requireKmaItems(it) }
+                    }
                     break
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.w(TAG, "Ultra-short forecast unavailable for $ultraTime: ${e.javaClass.simpleName}")
-                }
+                } catch (e: CancellationException) { throw e }
+                catch (_: Exception) { /* required short-term forecast remains usable */ }
             }
-
-            // 3. 필수 날씨 응답을 먼저 검증한다. 오류 응답은 캐시에 쓰지 않는다.
-            val forecast = parseWeather(finalLocationName, ncstResponse, latestItems, previousIssueItems, ultraFcstResponse, now)
-
-            // 4. 실시간 대기질 (미세먼지 PM10, 초미세먼지 PM2.5) 조회
-            val airLatitude = locInfo.latitude ?: 37.5665
-            val airLongitude = locInfo.longitude ?: 126.9780
-            val reading = airQualityRepository.fetchDetailed(
-                latitude = airLatitude,
-                longitude = airLongitude
-            )
-            val weather = mergeAirQuality(
-                forecast.copy(airQualityLatitude = airLatitude, airQualityLongitude = airLongitude),
-                reading,
-                dataStore.weatherFlow.firstOrNull(),
-                System.currentTimeMillis()
-            )
-
-            // 5. 캐시 저장
-            dataStore.save(weather)
-
-            Log.d(TAG, "Weather updated: $weather")
-            Result.success(weather)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to fetch weather: ${e.javaClass.simpleName}")
-            Result.failure(e)
         }
+        val observedAt = runCatching {
+            val item = requireKmaItems(ncst).first()
+            LocalDateTime.parse(item.baseDate + item.baseTime, DateTimeFormatter.ofPattern("yyyyMMddHHmm"))
+                .atZone(ZoneId.of("Asia/Seoul")).toInstant().toEpochMilli()
+        }.getOrNull()
+        return parseWeather(name, ncst, latest, previous, ultra, now).copy(
+            airQualityLatitude = latitude, airQualityLongitude = longitude,
+            refresh = RefreshMetadata(requestId = trace.id, latitude = latitude, longitude = longitude,
+                locationConfirmedAt = locInfo.confirmedAt, weatherObservedAt = observedAt,
+                usedSavedLocation = usedSavedLocation))
     }
 
     private suspend fun fetchVilageItems(date: String, time: String, nx: Int, ny: Int) =
@@ -227,6 +293,14 @@ class WeatherRepository(private val context: Context) {
             hourlyForecasts = hourlyForecasts,
             hourlyForecastIssuedAt = hourlyIssuedAt?.takeIf { it.length == 4 }
                 ?.let { "${it.take(2)}:${it.takeLast(2)}" },
+            datedForecasts = fcstItems.mapNotNull { it.fcstDate }.distinct().sorted().map { date ->
+                val (morning, afternoon) = selectDailyHalfDays(fcstItems, date)
+                val daily = selectDailyForecast(fcstItems, date, "0000")
+                DatedForecast(date, morning, afternoon,
+                    forecastTemperature(fcstItems, date, "TMN") ?: morning?.minTemp,
+                    forecastTemperature(fcstItems, date, "TMX") ?: afternoon?.maxTemp,
+                    daily.condition, daily.pop)
+            },
             halfDayForecasts = halfDayForecasts,
             pm10 = -1,
             pm25 = -1,
@@ -241,3 +315,5 @@ class WeatherRepository(private val context: Context) {
         )
     }
 }
+
+class RefreshDeadlineException : Exception("Refresh deadline exceeded")

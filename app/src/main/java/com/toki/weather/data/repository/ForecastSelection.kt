@@ -8,7 +8,7 @@ import com.toki.weather.data.remote.forecastTemperature
 
 data class ForecastMoment(val sky: Int?, val pop: Int?)
 
-data class DailyForecast(val condition: WeatherCondition, val pop: Int)
+data class DailyForecast(val condition: WeatherCondition, val pop: Int?)
 
 fun selectDailyHalfDays(items: List<KmaResponse.Item>, date: String): Pair<HalfDayForecast?, HalfDayForecast?> {
     val morning = selectHalfDayForecast(items, date, "0000", "1200")?.let {
@@ -64,10 +64,10 @@ fun selectDailyForecast(
             .thenByDescending { (it.pty ?: 0) > 0 }
             .thenByDescending { it.sky ?: -1 }
             .thenBy { it.time }
-    ).firstOrNull() ?: return DailyForecast(WeatherCondition.UNKNOWN, 0)
+    ).firstOrNull() ?: return DailyForecast(WeatherCondition.UNKNOWN, null)
     return DailyForecast(
         condition = WeatherCondition.fromCodes(selected.pty ?: 0, selected.sky ?: -1),
-        pop = slots.mapNotNull { it.pop }.maxOrNull() ?: 0
+        pop = slots.mapNotNull { it.pop }.maxOrNull()
     )
 }
 
