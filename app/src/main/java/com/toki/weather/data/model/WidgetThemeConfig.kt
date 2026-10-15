@@ -7,7 +7,8 @@ data class WidgetThemeConfig(
     val backgroundColorHex: String = "#261643", // 기본 미드나잇 퍼플
     val backgroundAlpha: Float = 0.8f,          // 0.0(완전 투명) ~ 1.0(불투명)
     val textColorHex: String = "#FFFFFF",       // 기본 화이트
-    val isShadowEnabled: Boolean = true         // 음영 효과 사용 여부
+    val isShadowEnabled: Boolean = true,        // 음영 효과 사용 여부
+    val iconTheme: WidgetIconTheme = WidgetIconTheme.DEFAULT
 ) {
     companion object {
         val DEFAULT = WidgetThemeConfig()

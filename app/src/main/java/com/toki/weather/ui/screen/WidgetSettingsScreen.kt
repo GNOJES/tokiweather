@@ -53,6 +53,7 @@ import com.toki.weather.data.cache.WeatherDataStore
 import com.toki.weather.data.model.CachedWeather
 import com.toki.weather.data.model.WeatherCondition
 import com.toki.weather.data.model.WidgetThemeConfig
+import com.toki.weather.data.model.WidgetIconTheme
 import com.toki.weather.data.repository.WeatherRepository
 import com.toki.weather.util.DateTimeUtils
 import com.toki.weather.util.LocationHelper
@@ -94,13 +95,16 @@ fun SettingsScreen(
     val savedTheme by dataStore.themeFlow.collectAsState(initial = WidgetThemeConfig.DEFAULT)
     val savedInterval by dataStore.updateIntervalFlow.collectAsState(initial = 30)
     val savedCustomLocation by dataStore.customLocationNameFlow.collectAsState(initial = "")
+    val savedScreenFill by dataStore.screenFillFlow.collectAsState(initial = false)
 
     // 편집 중인 임시 상태
     var currentBgColor by remember { mutableStateOf(WidgetThemeConfig.DEFAULT.backgroundColorHex) }
     var currentAlpha by remember { mutableFloatStateOf(WidgetThemeConfig.DEFAULT.backgroundAlpha) }
     var currentTextColor by remember { mutableStateOf(WidgetThemeConfig.DEFAULT.textColorHex) }
+    var currentIconTheme by remember { mutableStateOf(WidgetIconTheme.DEFAULT) }
     var currentInterval by remember { mutableIntStateOf(30) }
     var customLocationName by remember { mutableStateOf("") }
+    var currentScreenFill by remember { mutableStateOf(false) }
     var selectedPreset by remember {
         mutableStateOf(
             if (initialWidgetType == "3x2" || initialWidgetType == "large") {
@@ -129,12 +133,16 @@ fun SettingsScreen(
         currentBgColor = savedTheme.backgroundColorHex
         currentAlpha = savedTheme.backgroundAlpha
         currentTextColor = savedTheme.textColorHex
+        currentIconTheme = savedTheme.iconTheme
     }
     LaunchedEffect(savedInterval) {
         currentInterval = savedInterval
     }
     LaunchedEffect(savedCustomLocation) {
         customLocationName = savedCustomLocation
+    }
+    LaunchedEffect(savedScreenFill) {
+        currentScreenFill = savedScreenFill
     }
 
     // 1. 기본 위치 권한 (Fine / Coarse) 상태
@@ -212,7 +220,9 @@ fun SettingsScreen(
                                     val updatedTheme = WidgetThemeConfig(
                                         backgroundColorHex = currentBgColor,
                                         backgroundAlpha = currentAlpha,
-                                        textColorHex = currentTextColor
+                                        textColorHex = currentTextColor,
+                                        isShadowEnabled = savedTheme.isShadowEnabled,
+                                        iconTheme = currentIconTheme
                                     )
                                     val outcome = withContext(Dispatchers.IO) {
                                         saveSettingsAndRefresh(
@@ -220,6 +230,7 @@ fun SettingsScreen(
                                                 dataStore.saveTheme(updatedTheme)
                                                 dataStore.saveUpdateInterval(currentInterval)
                                                 dataStore.saveCustomLocationName(customLocationName.trim())
+                                                dataStore.saveScreenFill(currentScreenFill)
                                                 WeatherWorkScheduler.schedule(context, currentInterval.toLong())
                                             },
                                             fetch = { WeatherRepository(context).fetchAndSave(source = RefreshSource.SETTINGS,
@@ -262,6 +273,21 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("이 기기에서 화면 채우기", fontWeight = FontWeight.Bold)
+                        Text("날씨 카드의 안쪽 여백을 늘려 남는 공간을 채웁니다.",
+                            fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked = currentScreenFill, onCheckedChange = { currentScreenFill = it },
+                        enabled = !isSaving)
+                }
+            }
 
             // 1-A. 기본 위치 권한 안내 배너
             if (!hasForegroundLocation) {
@@ -451,13 +477,39 @@ fun SettingsScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    Text("아이콘 테마", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    WidgetIconTheme.entries.chunked(2).forEach { themes ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            themes.forEach { theme ->
+                                FilterChip(
+                                    selected = currentIconTheme == theme,
+                                    onClick = { currentIconTheme = theme },
+                                    enabled = !isSaving,
+                                    label = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Image(painterResource(theme.iconRes(WeatherCondition.CLEAR)),
+                                                contentDescription = null, modifier = Modifier.size(24.dp))
+                                            Spacer(Modifier.width(5.dp))
+                                            Text(theme.label, fontSize = 11.sp)
+                                        }
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            if (themes.size == 1) Spacer(Modifier.weight(1f))
+                        }
+                    }
+                    Text("선택하면 미리보기에 반영되며, 저장 후 두 위젯에 적용됩니다.",
+                        fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(8.dp))
                     WidgetPreviewBox(
                         weather = cachedWeather,
                         customLocationName = customLocationName,
                         bgColorHex = currentBgColor,
                         bgAlpha = currentAlpha,
                         textColorHex = currentTextColor,
-                        preset = selectedPreset
+                        preset = selectedPreset,
+                        iconTheme = currentIconTheme
                     )
                 }
             }
@@ -802,7 +854,8 @@ fun WidgetPreviewBox(
     bgColorHex: String,
     bgAlpha: Float,
     textColorHex: String,
-    preset: WidgetPreset = WidgetPreset.SAMSUNG_2X1
+    preset: WidgetPreset = WidgetPreset.SAMSUNG_2X1,
+    iconTheme: WidgetIconTheme = WidgetIconTheme.DEFAULT
 ) {
     val now by rememberWeatherNow()
     val weather = weather.forDisplay(now)
@@ -829,7 +882,8 @@ fun WidgetPreviewBox(
             currentCondition,
             now,
             weather.refresh.latitude ?: weather.airQualityLatitude ?: 37.5665,
-            weather.refresh.longitude ?: weather.airQualityLongitude ?: 126.9780
+            weather.refresh.longitude ?: weather.airQualityLongitude ?: 126.9780,
+            iconTheme
         )
         val tomorrowCondition = if (weather.lastUpdated > 0) weather.tomorrowCondition else WeatherCondition.UNKNOWN
         val dayAfterCondition = if (weather.lastUpdated > 0) weather.dayAfterCondition else WeatherCondition.UNKNOWN
@@ -852,7 +906,7 @@ fun WidgetPreviewBox(
                         textAlign = TextAlign.Center, modifier = Modifier.padding(9.dp))
                 }
             } else if (preset == WidgetPreset.SAMSUNG_2X1) {
-                CompactWidgetPreview(weather, displayLocName, currentIconRes, parsedBg.copy(alpha = bgAlpha), parsedText, now)
+                CompactWidgetPreview(weather, displayLocName, currentIconRes, parsedBg.copy(alpha = bgAlpha), parsedText, now, iconTheme)
             } else {
                 // ─── 2. 노바런처 8×8 (3×2) 세로 2단 위젯 (138×187dp) ───
                 val previewWidth = 138.dp
@@ -987,7 +1041,7 @@ fun WidgetPreviewBox(
                                 Text(text = "내일", fontSize = 10.5.sp, color = subText, maxLines = 1)
                                 Spacer(modifier = Modifier.height(1.dp))
                                 Image(
-                                    painter = painterResource(tomorrowCondition.iconRes),
+                                    painter = painterResource(iconTheme.iconRes(tomorrowCondition)),
                                     contentDescription = tomorrowCondition.label,
                                     modifier = Modifier.size(29.dp)
                                 )
@@ -1015,7 +1069,7 @@ fun WidgetPreviewBox(
                                 Text(text = "모레", fontSize = 10.5.sp, color = subText, maxLines = 1)
                                 Spacer(modifier = Modifier.height(1.dp))
                                 Image(
-                                    painter = painterResource(dayAfterCondition.iconRes),
+                                    painter = painterResource(iconTheme.iconRes(dayAfterCondition)),
                                     contentDescription = dayAfterCondition.label,
                                     modifier = Modifier.size(29.dp)
                                 )

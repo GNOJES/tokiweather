@@ -32,6 +32,7 @@ fun RefreshStatusLine(weather: CachedWeather, now: Long) {
         add(if (weather.lastUpdated > 0) "${timeLabel(weather.lastUpdated)} 갱신" else "갱신 자료 없음")
         if (weather.usesPreviousWeather(now, interval, events)) add("이전 자료")
         if (weather.refresh.usedSavedLocation) add("마지막 확인 지역")
+        if (weather.refresh.shortForecastFallback) add("직전 예보")
     }.joinToString(" · ")
     Text("$summary ⓘ", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.clickable { details = true }.padding(top = 2.dp))
@@ -49,6 +50,7 @@ fun RefreshStatusLine(weather: CachedWeather, now: Long) {
                     else -> "대기질: 수신한 관측값 사용"
                 }, fontSize = 12.sp)
                 if (weather.refresh.usedSavedLocation) Text("새 위치를 얻지 못해 마지막 확인 지역의 날씨를 조회했습니다.", fontSize = 12.sp)
+                if (weather.refresh.shortForecastFallback) Text("최신 단기예보가 없어 직전 발표 자료를 사용했습니다. 현재 기온은 별도로 받은 실황입니다.", fontSize = 12.sp)
                 address?.let { diagnostic ->
                     Text("지역명 판단: ${diagnostic.selection.name} · ${timeLabel(diagnostic.at)}", fontSize = 12.sp)
                     diagnostic.selection.candidates.forEach { candidate ->
@@ -75,6 +77,7 @@ fun RefreshStatusLine(weather: CachedWeather, now: Long) {
 private fun sourceLabel(value: RefreshSource) = when(value) {
     RefreshSource.MANUAL -> "수동"; RefreshSource.INITIAL -> "최초 조회"; RefreshSource.AUTOMATIC -> "자동"
     RefreshSource.SETTINGS -> "설정"; RefreshSource.DISPLAY -> "위젯 표시"
+    RefreshSource.FOREGROUND -> "앱 진입"
 }
 private fun stageLabel(value: RefreshStage) = when(value) {
     RefreshStage.REQUEST -> "전체 요청"; RefreshStage.LOCATION -> "위치 확인"

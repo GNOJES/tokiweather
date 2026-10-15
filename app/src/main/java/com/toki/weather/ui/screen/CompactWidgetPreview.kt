@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.toki.weather.R
 import com.toki.weather.data.model.CachedWeather
+import com.toki.weather.data.model.WidgetIconTheme
 import com.toki.weather.data.model.formatTemperatureRange
 import com.toki.weather.util.DateTimeUtils
 import java.time.LocalDateTime
@@ -27,14 +28,14 @@ import java.time.LocalDateTime
 /** Compose counterpart of the measured One UI 234.67×98.67dp widget. */
 @Composable
 fun CompactWidgetPreview(weather: CachedWeather, location: String, icon: Int, background: Color,
-                         text: Color, now: LocalDateTime) {
+                         text: Color, now: LocalDateTime, iconTheme: WidgetIconTheme = WidgetIconTheme.DEFAULT) {
     val sub = text.copy(alpha = .75f)
     val currentWidth = (234.67f - 18f - 5f) * .52f
     val forecastWidth = (234.67f - 18f - 5f - currentWidth - 3f) / 2f
     Column(Modifier.size(234.67.dp, 98.67.dp).clip(RoundedCornerShape(16.dp))
         .background(background).padding(horizontal = 9.dp, vertical = 5.dp),
         verticalArrangement = Arrangement.Center) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(DateTimeUtils.todayDateWithDayOfWeekString(now.toLocalDate()), fontSize = 10.5.sp, lineHeight = 10.5.sp, style = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false)),
                 fontWeight = FontWeight.Bold, color = sub, maxLines = 1)
             Spacer(Modifier.weight(1f))
@@ -70,9 +71,9 @@ fun CompactWidgetPreview(weather: CachedWeather, location: String, icon: Int, ba
                 }
             }
             Spacer(Modifier.width(5.dp))
-            PreviewForecast("내일", weather.tomorrowCondition.iconRes, weather.tomorrowMin, weather.tomorrowMax, weather.tomorrowPop, forecastWidth, text)
+            PreviewForecast("내일", iconTheme.iconRes(weather.tomorrowCondition), weather.tomorrowMin, weather.tomorrowMax, weather.tomorrowPop, forecastWidth, text)
             Spacer(Modifier.width(3.dp))
-            PreviewForecast("모레", weather.dayAfterCondition.iconRes, weather.dayAfterMin, weather.dayAfterMax, weather.dayAfterPop, forecastWidth, text)
+            PreviewForecast("모레", iconTheme.iconRes(weather.dayAfterCondition), weather.dayAfterMin, weather.dayAfterMax, weather.dayAfterPop, forecastWidth, text)
         }
     }
 }

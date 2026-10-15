@@ -213,7 +213,8 @@ private fun LargeWidgetLayout(
                             weather.currentCondition,
                             now,
                             weather.refresh.latitude ?: weather.airQualityLatitude ?: 37.5665,
-                            weather.refresh.longitude ?: weather.airQualityLongitude ?: 126.9780
+                            weather.refresh.longitude ?: weather.airQualityLongitude ?: 126.9780,
+                            theme.iconTheme
                         )),
                         contentDescription = "현재 날씨 ${weather.currentCondition.label}",
                         modifier = GlanceModifier.size(todayIconSize)
@@ -299,7 +300,7 @@ private fun LargeWidgetLayout(
                     )
                     Spacer(modifier = GlanceModifier.height(1.dp))
                     Image(
-                        provider = ImageProvider(weather.tomorrowCondition.iconRes),
+                        provider = ImageProvider(theme.iconTheme.iconRes(weather.tomorrowCondition)),
                         contentDescription = weather.tomorrowCondition.label,
                         modifier = GlanceModifier.size(forecastIconSize)
                     )
@@ -336,7 +337,7 @@ private fun LargeWidgetLayout(
                     )
                     Spacer(modifier = GlanceModifier.height(1.dp))
                     Image(
-                        provider = ImageProvider(weather.dayAfterCondition.iconRes),
+                        provider = ImageProvider(theme.iconTheme.iconRes(weather.dayAfterCondition)),
                         contentDescription = weather.dayAfterCondition.label,
                         modifier = GlanceModifier.size(forecastIconSize)
                     )

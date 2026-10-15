@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -40,13 +41,18 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.PlatformTextStyle
@@ -75,7 +81,8 @@ fun WeatherPlaceholderScreen(
     isRefreshing: Boolean = false,
     onRefresh: () -> Unit = {},
     hourlyIntervalHours: Int = 1,
-    onHourlyIntervalSelected: (Int) -> Unit = {}
+    onHourlyIntervalSelected: (Int) -> Unit = {},
+    fillAvailableHeight: Boolean = false
 ) {
     val context = LocalContext.current
     val now by rememberWeatherNow((context as? androidx.lifecycle.LifecycleOwner)?.lifecycle)
@@ -134,10 +141,25 @@ fun WeatherPlaceholderScreen(
             )
         )
 
+        BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
+        val density = LocalDensity.current.density
+        var naturalContentHeight by remember { mutableStateOf<Float?>(null) }
+        val extraPadding = weatherCardExtraPadding(
+            fillAvailableHeight, maxHeight.value, naturalContentHeight
+        ).dp
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .verticalScroll(scrollState)
+                .alpha(if (fillAvailableHeight && naturalContentHeight == null) 0f else 1f)
+                .onSizeChanged { size ->
+                    // Remove only the padding added by this option to avoid measuring it as natural content.
+                    val measured = size.height / density - extraPadding.value * 10f
+                    if (naturalContentHeight == null ||
+                        kotlin.math.abs(measured - requireNotNull(naturalContentHeight)) > 1f) {
+                        naturalContentHeight = measured
+                    }
+                }
                 .padding(horizontal = 16.dp)
                 .padding(top = 4.dp, bottom = 4.dp),
             verticalArrangement = Arrangement.spacedBy(7.dp)
@@ -153,7 +175,7 @@ fun WeatherPlaceholderScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 12.dp, horizontal = 20.dp),
+                        .padding(vertical = 12.dp + extraPadding, horizontal = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -212,7 +234,7 @@ fun WeatherPlaceholderScreen(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
             ) {
-                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp + extraPadding)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                             Text("기상청 시간별 예보", fontSize = 14.sp, fontWeight = FontWeight.Bold)
@@ -292,7 +314,7 @@ fun WeatherPlaceholderScreen(
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
             ) {
-                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp + extraPadding)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -326,7 +348,7 @@ fun WeatherPlaceholderScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
                 )
             ) {
-                Column(modifier = Modifier.padding(8.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp + extraPadding)) {
                     Text(
                         text = "실시간 대기질 · 에어코리아",
                         fontSize = 14.sp,
@@ -369,7 +391,7 @@ fun WeatherPlaceholderScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp + extraPadding),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -407,6 +429,7 @@ fun WeatherPlaceholderScreen(
                 }
             }
 
+        }
         }
     }
 }

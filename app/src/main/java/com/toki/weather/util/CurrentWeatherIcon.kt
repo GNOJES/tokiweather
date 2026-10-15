@@ -1,19 +1,15 @@
 package com.toki.weather.util
 
-import com.toki.weather.R
 import com.toki.weather.data.model.WeatherCondition
+import com.toki.weather.data.model.WidgetIconTheme
 import java.time.LocalDateTime
 
 fun currentWeatherIconRes(
     condition: WeatherCondition,
     dateTime: LocalDateTime,
     latitude: Double,
-    longitude: Double
+    longitude: Double,
+    theme: WidgetIconTheme = WidgetIconTheme.DEFAULT
 ): Int {
-    if (!SolarTime.isNight(dateTime, latitude, longitude)) return condition.iconRes
-    return when (condition) {
-        WeatherCondition.CLEAR -> R.drawable.ic_weather_clear_night
-        WeatherCondition.CLOUDY -> R.drawable.ic_weather_cloudy_night
-        else -> condition.iconRes
-    }
+    return theme.iconRes(condition, SolarTime.isNight(dateTime, latitude, longitude))
 }

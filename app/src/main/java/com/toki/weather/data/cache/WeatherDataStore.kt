@@ -20,6 +20,7 @@ import com.toki.weather.data.model.HalfDayForecast
 import com.toki.weather.data.model.HourlyForecast
 import com.toki.weather.data.model.WeatherCondition
 import com.toki.weather.data.model.WidgetThemeConfig
+import com.toki.weather.data.model.WidgetIconTheme
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import com.toki.weather.util.AddressDiagnostics
@@ -74,10 +75,12 @@ class WeatherDataStore(private val store: DataStore<Preferences>) {
         private val KEY_BG_ALPHA = floatPreferencesKey("theme_bg_alpha")
         private val KEY_TEXT_COLOR = stringPreferencesKey("theme_text_color")
         private val KEY_SHADOW_ENABLED = booleanPreferencesKey("theme_shadow_enabled")
+        private val KEY_ICON_THEME = stringPreferencesKey("widget_icon_theme")
 
         // 갱신 주기 키 (분 단위, 기본 30분)
         private val KEY_UPDATE_INTERVAL = intPreferencesKey("update_interval_minutes")
         private val KEY_HOURLY_INTERVAL = intPreferencesKey("hourly_forecast_interval_hours")
+        private val KEY_SCREEN_FILL = booleanPreferencesKey("device_screen_fill")
 
         // 사용자 직접 지정 동네 이름 키 (비어있으면 GPS 자동 감지 사용)
         private val KEY_CUSTOM_LOCATION_NAME = stringPreferencesKey("custom_location_name")
@@ -147,7 +150,8 @@ class WeatherDataStore(private val store: DataStore<Preferences>) {
             backgroundColorHex = prefs[KEY_BG_COLOR] ?: "#261643",
             backgroundAlpha = prefs[KEY_BG_ALPHA] ?: 0.8f,
             textColorHex = prefs[KEY_TEXT_COLOR] ?: "#FFFFFF",
-            isShadowEnabled = prefs[KEY_SHADOW_ENABLED] ?: true
+            isShadowEnabled = prefs[KEY_SHADOW_ENABLED] ?: true,
+            iconTheme = WidgetIconTheme.fromId(prefs[KEY_ICON_THEME])
         )
     }
 
@@ -160,6 +164,13 @@ class WeatherDataStore(private val store: DataStore<Preferences>) {
 
     val hourlyIntervalFlow: Flow<Int> = store.data.map { prefs ->
         prefs[KEY_HOURLY_INTERVAL]?.takeIf { it == 1 || it == 3 } ?: 1
+    }
+
+    // Device-local opt-in; existing installations keep their original layout.
+    val screenFillFlow: Flow<Boolean> = store.data.map { it[KEY_SCREEN_FILL] ?: false }
+
+    suspend fun saveScreenFill(enabled: Boolean) {
+        store.edit { it[KEY_SCREEN_FILL] = enabled }
     }
 
     /**
@@ -249,6 +260,7 @@ class WeatherDataStore(private val store: DataStore<Preferences>) {
             prefs[KEY_BG_ALPHA] = theme.backgroundAlpha
             prefs[KEY_TEXT_COLOR] = theme.textColorHex
             prefs[KEY_SHADOW_ENABLED] = theme.isShadowEnabled
+            prefs[KEY_ICON_THEME] = theme.iconTheme.id
         }
     }
 

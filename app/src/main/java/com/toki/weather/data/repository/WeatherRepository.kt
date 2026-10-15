@@ -181,11 +181,17 @@ class WeatherRepository(private val context: Context) {
             api.getUltraSrtNcst(serviceKey = serviceKey, baseDate = ncstDate, baseTime = ncstTime,
                 nx = locInfo.nx, ny = locInfo.ny).also { requireCurrentTemperature(requireKmaItems(it)) }
         }
-        val (date, time) = DateTimeUtils.getVilageFcstBaseDateTime(now)
-        val latest = trace.stage(RefreshStage.SHORT_FORECAST) { fetchVilageItems(date, time, locInfo.nx, locInfo.ny) }
+        val shortForecast = fetchShortForecastWithFallback(now) { date, time, previous ->
+            if (previous) {
+                withTimeout(4_000L) {
+                    trace.stage(RefreshStage.PREVIOUS_FORECAST) { fetchVilageItems(date, time, locInfo.nx, locInfo.ny) }
+                }
+            } else trace.stage(RefreshStage.SHORT_FORECAST) { fetchVilageItems(date, time, locInfo.nx, locInfo.ny) }
+        }
+        val latest = shortForecast.items
         val today = now.format(DateTimeFormatter.BASIC_ISO_DATE)
         val hour = "%02d00".format(now.hour)
-        val previous = if (selectCurrentForecastMoment(latest, today, hour).sky == null) {
+        val previous = if (!shortForecast.usedPreviousIssue && selectCurrentForecastMoment(latest, today, hour).sky == null) {
             val (oldDate, oldTime) = DateTimeUtils.getPreviousVilageFcstBaseDateTime(now)
             try {
                 withTimeoutOrNull(4_000L) {
@@ -217,7 +223,7 @@ class WeatherRepository(private val context: Context) {
             airQualityLatitude = latitude, airQualityLongitude = longitude,
             refresh = RefreshMetadata(requestId = trace.id, latitude = latitude, longitude = longitude,
                 locationConfirmedAt = locInfo.confirmedAt, weatherObservedAt = observedAt,
-                usedSavedLocation = usedSavedLocation))
+                usedSavedLocation = usedSavedLocation, shortForecastFallback = shortForecast.usedPreviousIssue))
     }
 
     private suspend fun fetchVilageItems(date: String, time: String, nx: Int, ny: Int) =

@@ -19,7 +19,10 @@ suspend fun fetchAllKmaItems(fetchPage: suspend (Int) -> KmaResponse): List<KmaR
     return items
 }
 
+class KmaNoDataException : IllegalStateException("KMA data unavailable")
+
 fun requireKmaItems(response: KmaResponse): List<KmaResponse.Item> {
+    if (response.response.header.resultCode == "03") throw KmaNoDataException()
     check(response.response.header.resultCode == "00") { "KMA request failed" }
     return response.response.body?.items?.item
         ?: throw IllegalStateException("KMA response has no items")

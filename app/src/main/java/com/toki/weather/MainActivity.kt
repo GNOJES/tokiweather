@@ -3,6 +3,7 @@ package com.toki.weather
 import android.content.Intent
 import android.Manifest
 import android.os.Bundle
+import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -24,11 +25,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -43,9 +46,12 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.glance.appwidget.updateAll
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import com.toki.weather.data.cache.WeatherDataStore
-import com.toki.weather.data.model.CachedWeather
 import com.toki.weather.data.repository.WeatherRepository
+import com.toki.weather.data.repository.ForegroundRefreshPolicy
 import com.toki.weather.ui.screen.RadarWebViewScreen
 import com.toki.weather.ui.screen.SettingsScreen
 import com.toki.weather.ui.screen.WeatherPlaceholderScreen
@@ -105,10 +111,20 @@ fun MainScreen(
     val coroutineScope = rememberCoroutineScope()
     val dataStore = remember { WeatherDataStore(context) }
     val loadedWeather by dataStore.weatherFlow.collectAsState(initial = null)
-    val cachedWeather = loadedWeather ?: CachedWeather.EMPTY
+    val screenFillEnabled by dataStore.screenFillFlow.collectAsState(initial = false)
     val hourlyIntervalHours by dataStore.hourlyIntervalFlow.collectAsState(initial = 1)
+    val refreshInterval by dataStore.updateIntervalFlow.collectAsState(initial = null)
     var isRefreshing by remember { mutableStateOf(false) }
-    var initialRefreshAttempted by remember { mutableStateOf(false) }
+    val foregroundPolicy = remember { ForegroundRefreshPolicy() }
+    var foregroundEntry by remember { mutableIntStateOf(0) }
+    val lifecycle = (context as? LifecycleOwner)?.lifecycle
+    DisposableEffect(lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) foregroundEntry++
+        }
+        lifecycle?.addObserver(observer)
+        onDispose { lifecycle?.removeObserver(observer) }
+    }
 
     var pendingRefreshSource by remember { mutableStateOf(RefreshSource.MANUAL) }
     val refreshWeather: (RefreshSource) -> Unit = { source ->
@@ -156,14 +172,11 @@ fun MainScreen(
         ))
     }
 
-    androidx.compose.runtime.LaunchedEffect(loadedWeather?.lastUpdated, loadedWeather?.locationName) {
-        if (loadedWeather != null &&
-            (loadedWeather?.lastUpdated == 0L || loadedWeather?.locationName == "설정 위치") &&
-            !initialRefreshAttempted
-        ) {
-            initialRefreshAttempted = true
-            refreshWithPermission(RefreshSource.INITIAL)
-        }
+    androidx.compose.runtime.LaunchedEffect(foregroundEntry, loadedWeather, refreshInterval) {
+        if (lifecycle != null && !lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return@LaunchedEffect
+        foregroundPolicy.takeRequest(foregroundEntry, loadedWeather, System.currentTimeMillis(),
+            SystemClock.elapsedRealtime(), refreshInterval, isRefreshing,
+            LocationHelper.hasLocationPermission(context))?.let(refreshWithPermission)
     }
 
     // 뒤로가기 제어: 1번(초단기), 2번(설정) 탭일 때는 0번(날씨) 탭으로 이동
@@ -231,8 +244,13 @@ fun MainScreen(
                 .padding(bottom = innerPadding.calculateBottomPadding())
         ) {
             when (selectedTab) {
-                0 -> WeatherPlaceholderScreen(
-                    weather = cachedWeather,
+                0 -> if (loadedWeather == null) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                    }
+                } else WeatherPlaceholderScreen(
+                    weather = requireNotNull(loadedWeather),
+                    fillAvailableHeight = screenFillEnabled,
                     isRefreshing = isRefreshing,
                     onRefresh = { refreshWithPermission(RefreshSource.MANUAL) },
                     hourlyIntervalHours = hourlyIntervalHours,

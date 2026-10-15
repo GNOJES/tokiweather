@@ -48,6 +48,7 @@ import com.toki.weather.data.model.WeatherCondition
 import com.toki.weather.util.DateTimeUtils
 import com.toki.weather.data.model.CachedWeather
 import com.toki.weather.data.model.WidgetThemeConfig
+import com.toki.weather.data.model.WidgetIconTheme
 import com.toki.weather.util.currentWeatherIconRes
 import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.collectAsState
@@ -160,7 +161,7 @@ private fun WeatherWidgetContent(
             )
         } else {
             Row(
-                modifier = GlanceModifier.fillMaxWidth().padding(horizontal = 2.dp),
+                modifier = GlanceModifier.fillMaxWidth().padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -206,7 +207,8 @@ private fun WeatherWidgetContent(
                             weather.currentCondition,
                             now,
                             weather.refresh.latitude ?: weather.airQualityLatitude ?: 37.5665,
-                            weather.refresh.longitude ?: weather.airQualityLongitude ?: 126.9780
+                            weather.refresh.longitude ?: weather.airQualityLongitude ?: 126.9780,
+                            theme.iconTheme
                         )),
                         contentDescription = "현재 날씨 ${weather.currentCondition.label}",
                         modifier = GlanceModifier.size(currentIconSize)
@@ -256,13 +258,13 @@ private fun WeatherWidgetContent(
                 CompactForecast(
                     "내일", weather.tomorrowCondition, weather.tomorrowMin, weather.tomorrowMax,
                     weather.tomorrowPop, forecastWidth, forecastIconSize, forecastTempSize,
-                    mainTextColor, fontScale
+                    mainTextColor, fontScale, theme.iconTheme
                 )
                 Spacer(modifier = GlanceModifier.width(3.dp))
                 CompactForecast(
                     "모레", weather.dayAfterCondition, weather.dayAfterMin, weather.dayAfterMax,
                     weather.dayAfterPop, forecastWidth, forecastIconSize, forecastTempSize,
-                    mainTextColor, fontScale
+                    mainTextColor, fontScale, theme.iconTheme
                 )
             }
         }
@@ -280,7 +282,8 @@ private fun CompactForecast(
     iconSize: Dp,
     temperatureSize: Float,
     textColor: ComposeColor,
-    fontScale: Float
+    fontScale: Float,
+    iconTheme: WidgetIconTheme
 ) {
     Column(
         modifier = GlanceModifier.width(width),
@@ -292,7 +295,7 @@ private fun CompactForecast(
                 fontSize = 9.fixedSp(fontScale)),
             maxLines = 1
         )
-        Image(provider = ImageProvider(condition.iconRes), contentDescription = condition.label,
+        Image(provider = ImageProvider(iconTheme.iconRes(condition)), contentDescription = condition.label,
             modifier = GlanceModifier.size(iconSize))
         Text(
             text = formatTemperatureRange(minimum, maximum),

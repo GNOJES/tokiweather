@@ -9,6 +9,41 @@ import org.junit.Test
 import java.nio.file.Files
 
 class RefreshCommitTest {
+    @Test fun iconThemeDefaultsAndSavesWithoutChangingOtherPreferences() = runBlocking {
+        withStore { store ->
+            assertEquals(WidgetIconTheme.DEFAULT, store.themeFlow.first().iconTheme)
+            val theme = WidgetThemeConfig("#123456", .65f, "#FEDCBA", false, WidgetIconTheme.PLUSH)
+            store.saveUpdateInterval(60)
+            store.saveTheme(theme)
+            store.commit(store.beginRequest()) { CachedWeather.EMPTY.copy(lastUpdated = 1234) }
+            assertEquals(theme, store.themeFlow.first())
+            assertEquals(60, store.updateIntervalFlow.first())
+            store.saveTheme(theme.copy(iconTheme = WidgetIconTheme.DEFAULT))
+            assertEquals(theme.copy(iconTheme = WidgetIconTheme.DEFAULT), store.themeFlow.first())
+        }
+    }
+
+    @Test fun screenFillIsOptInAndIndependentBetweenDeviceStores() = runBlocking {
+        withStore { firstDevice ->
+            assertFalse(firstDevice.screenFillFlow.first())
+            firstDevice.saveScreenFill(true)
+            withStore { otherDevice ->
+                assertFalse(otherDevice.screenFillFlow.first())
+                assertTrue(firstDevice.screenFillFlow.first())
+            }
+        }
+    }
+
+    @Test fun weatherCommitPreservesScreenFillAndItCanBeDisabled() = runBlocking {
+        withStore { store ->
+            store.saveScreenFill(true)
+            store.commit(store.beginRequest()) { CachedWeather.EMPTY.copy(lastUpdated = 1234) }
+            assertTrue(store.screenFillFlow.first())
+            store.saveScreenFill(false)
+            assertFalse(store.screenFillFlow.first())
+        }
+    }
+
     private suspend fun withStore(block: suspend (WeatherDataStore) -> Unit) {
         val directory = Files.createTempDirectory("toki-cache-test").toFile()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
