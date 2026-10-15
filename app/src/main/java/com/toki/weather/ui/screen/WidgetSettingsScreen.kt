@@ -499,7 +499,7 @@ fun SettingsScreen(
                             if (themes.size == 1) Spacer(Modifier.weight(1f))
                         }
                     }
-                    Text("선택하면 미리보기에 반영되며, 저장 후 두 위젯에 적용됩니다.",
+                    Text("선택하면 미리보기에 반영되며, 저장 후 날씨 탭과 두 위젯에 적용됩니다.",
                         fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(Modifier.height(8.dp))
                     WidgetPreviewBox(

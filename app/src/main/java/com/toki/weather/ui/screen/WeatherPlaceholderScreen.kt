@@ -65,6 +65,7 @@ import com.toki.weather.data.model.CachedWeather
 import com.toki.weather.data.model.HalfDayForecast
 import com.toki.weather.data.model.HourlyForecast
 import com.toki.weather.data.model.WeatherCondition
+import com.toki.weather.data.model.WidgetIconTheme
 import com.toki.weather.data.repository.ThreeHourForecast
 import com.toki.weather.data.repository.formatHourlyRainfall
 import com.toki.weather.data.repository.summarizeThreeHours
@@ -82,7 +83,8 @@ fun WeatherPlaceholderScreen(
     onRefresh: () -> Unit = {},
     hourlyIntervalHours: Int = 1,
     onHourlyIntervalSelected: (Int) -> Unit = {},
-    fillAvailableHeight: Boolean = false
+    fillAvailableHeight: Boolean = false,
+    iconTheme: WidgetIconTheme = WidgetIconTheme.DEFAULT
 ) {
     val context = LocalContext.current
     val now by rememberWeatherNow((context as? androidx.lifecycle.LifecycleOwner)?.lifecycle)
@@ -180,7 +182,7 @@ fun WeatherPlaceholderScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Image(
-                            painter = painterResource(weatherIconRes(weather.currentCondition, now, latitude, longitude)),
+                            painter = painterResource(weatherIconRes(weather.currentCondition, now, latitude, longitude, iconTheme)),
                             contentDescription = weather.currentCondition.label,
                             modifier = Modifier.size(78.dp)
                         )
@@ -281,13 +283,13 @@ fun WeatherPlaceholderScreen(
                                     threeHourPeriods.forEachIndexed { index, item ->
                                         val newDate = index > 0 && threeHourPeriods[index - 1].date != item.date
                                         if (newDate) ForecastDateDivider()
-                                        ThreeHourForecastCell(item, newDate && item.date != pinnedDate?.date, latitude, longitude)
+                                        ThreeHourForecastCell(item, newDate && item.date != pinnedDate?.date, latitude, longitude, iconTheme)
                                     }
                                 } else {
                                     weather.hourlyForecasts.forEachIndexed { index, item ->
                                         val newDate = index > 0 && weather.hourlyForecasts[index - 1].date != item.date
                                         if (newDate) ForecastDateDivider()
-                                        HourlyForecastCell(item, newDate && item.date != pinnedDate?.date, latitude, longitude)
+                                        HourlyForecastCell(item, newDate && item.date != pinnedDate?.date, latitude, longitude, iconTheme)
                                     }
                                 }
                             }
@@ -331,8 +333,8 @@ fun WeatherPlaceholderScreen(
                                 Spacer(modifier = Modifier.height(1.dp))
                                 val offset = (index + 1) * 2
                                 Row(modifier = Modifier.fillMaxWidth()) {
-                                    HalfDayForecastCell("오전", weather.halfDayForecasts.getOrNull(offset), Modifier.weight(1f))
-                                    HalfDayForecastCell("오후", weather.halfDayForecasts.getOrNull(offset + 1), Modifier.weight(1f))
+                                    HalfDayForecastCell("오전", weather.halfDayForecasts.getOrNull(offset), Modifier.weight(1f), iconTheme)
+                                    HalfDayForecastCell("오후", weather.halfDayForecasts.getOrNull(offset + 1), Modifier.weight(1f), iconTheme)
                                 }
                             }
                         }
@@ -400,7 +402,7 @@ fun WeatherPlaceholderScreen(
                         modifier = Modifier.weight(1f)
                     ) {
                         Image(
-                            painter = painterResource(R.drawable.ic_tab_weather),
+                            painter = painterResource(iconTheme.iconRes(WeatherCondition.CLOUDY)),
                             contentDescription = "기상청 날씨누리",
                             modifier = Modifier.size(24.dp)
                         )
@@ -435,7 +437,7 @@ fun WeatherPlaceholderScreen(
 }
 
 @Composable
-private fun HourlyForecastCell(forecast: HourlyForecast, showDate: Boolean, latitude: Double, longitude: Double) {
+private fun HourlyForecastCell(forecast: HourlyForecast, showDate: Boolean, latitude: Double, longitude: Double, iconTheme: WidgetIconTheme) {
     Column(modifier = Modifier.width(48.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             if (showDate) shortForecastDate(forecast.date) else " ",
@@ -445,7 +447,7 @@ private fun HourlyForecastCell(forecast: HourlyForecast, showDate: Boolean, lati
         )
         Text("${forecast.time.take(2)}시", fontSize = 11.sp, fontWeight = FontWeight.Medium)
         Image(
-            painter = painterResource(weatherIconRes(forecast.condition, forecastDateTime(forecast.date, forecast.time), latitude, longitude)),
+            painter = painterResource(weatherIconRes(forecast.condition, forecastDateTime(forecast.date, forecast.time), latitude, longitude, iconTheme)),
             contentDescription = forecast.condition.label,
             modifier = Modifier.size(30.dp)
         )
@@ -478,14 +480,15 @@ private fun weatherIconRes(
     condition: WeatherCondition,
     dateTime: LocalDateTime?,
     latitude: Double,
-    longitude: Double
+    longitude: Double,
+    iconTheme: WidgetIconTheme
 ): Int {
-    return dateTime?.let { currentWeatherIconRes(condition, it, latitude, longitude) }
-        ?: condition.iconRes
+    return dateTime?.let { currentWeatherIconRes(condition, it, latitude, longitude, iconTheme) }
+        ?: iconTheme.iconRes(condition)
 }
 
 @Composable
-private fun ThreeHourForecastCell(forecast: ThreeHourForecast, showDate: Boolean, latitude: Double, longitude: Double) {
+private fun ThreeHourForecastCell(forecast: ThreeHourForecast, showDate: Boolean, latitude: Double, longitude: Double, iconTheme: WidgetIconTheme) {
     Column(modifier = Modifier.width(64.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             if (showDate) shortForecastDate(forecast.date) else " ",
@@ -495,7 +498,7 @@ private fun ThreeHourForecastCell(forecast: ThreeHourForecast, showDate: Boolean
         )
         Text("${forecast.startTime.take(2)}시", fontSize = 11.sp, fontWeight = FontWeight.Medium)
         Image(
-            painter = painterResource(weatherIconRes(forecast.condition, forecastDateTime(forecast.date, forecast.startTime)?.plusHours(1), latitude, longitude)),
+            painter = painterResource(weatherIconRes(forecast.condition, forecastDateTime(forecast.date, forecast.startTime)?.plusHours(1), latitude, longitude, iconTheme)),
             contentDescription = forecast.condition.label,
             modifier = Modifier.size(30.dp)
         )
@@ -511,13 +514,13 @@ private fun ThreeHourForecastCell(forecast: ThreeHourForecast, showDate: Boolean
 }
 
 @Composable
-private fun HalfDayForecastCell(label: String, forecast: HalfDayForecast?, modifier: Modifier = Modifier) {
+private fun HalfDayForecastCell(label: String, forecast: HalfDayForecast?, modifier: Modifier, iconTheme: WidgetIconTheme) {
     val compactTextStyle = TextStyle(platformStyle = PlatformTextStyle(includeFontPadding = false))
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(label, fontSize = 11.sp, lineHeight = 12.sp, style = compactTextStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (forecast != null) {
             Image(
-                painter = painterResource(forecast.condition.iconRes),
+                painter = painterResource(iconTheme.iconRes(forecast.condition)),
                 contentDescription = "$label ${forecast.condition.label}",
                 modifier = Modifier.size(33.dp)
             )

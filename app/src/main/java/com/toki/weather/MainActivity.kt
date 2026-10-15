@@ -111,6 +111,7 @@ fun MainScreen(
     val coroutineScope = rememberCoroutineScope()
     val dataStore = remember { WeatherDataStore(context) }
     val loadedWeather by dataStore.weatherFlow.collectAsState(initial = null)
+    val savedTheme by dataStore.themeFlow.collectAsState(initial = null)
     val screenFillEnabled by dataStore.screenFillFlow.collectAsState(initial = false)
     val hourlyIntervalHours by dataStore.hourlyIntervalFlow.collectAsState(initial = 1)
     val refreshInterval by dataStore.updateIntervalFlow.collectAsState(initial = null)
@@ -244,12 +245,13 @@ fun MainScreen(
                 .padding(bottom = innerPadding.calculateBottomPadding())
         ) {
             when (selectedTab) {
-                0 -> if (loadedWeather == null) {
+                0 -> if (loadedWeather == null || savedTheme == null) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
                     }
                 } else WeatherPlaceholderScreen(
                     weather = requireNotNull(loadedWeather),
+                    iconTheme = requireNotNull(savedTheme).iconTheme,
                     fillAvailableHeight = screenFillEnabled,
                     isRefreshing = isRefreshing,
                     onRefresh = { refreshWithPermission(RefreshSource.MANUAL) },
