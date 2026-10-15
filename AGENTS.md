@@ -133,7 +133,7 @@
 
 ## Testing and verification
 
-- 2026-10-15 v1.0.1/18 배포 검증: 앱 날씨 탭 아이콘 테마 연동 후속 수정을 포함한다. testDebugUnitTest 및 testReleaseUnitTest 각각 135개(실패/오류 0), assembleDebug 및 assembleRelease, git diff --check 통과. Release APK의 com.toki.weather/1.0.1/18과 기존 디버그 인증서 일치를 확인했다. APK SHA-256은 `5d4192aeb37ab6c0b3b05f6d838a2855b997ce73dcec8c5a7e178b08f7893e79`이다. 직전 수정본의 S25 픽셀 테마 확인과 이번 버전 빌드 검증은 구분한다. GitHub 게시 결과는 완료 후 기록한다.
+- 2026-10-15 v1.0.1/18 배포 검증: 앱 날씨 탭 아이콘 테마 연동 후속 수정을 포함한다. testDebugUnitTest 및 testReleaseUnitTest 각각 135개(실패/오류 0), assembleDebug 및 assembleRelease, git diff --check 통과. Release APK의 com.toki.weather/1.0.1/18과 기존 디버그 인증서 일치를 확인했다. APK SHA-256은 `5d4192aeb37ab6c0b3b05f6d838a2855b997ce73dcec8c5a7e178b08f7893e79`이다. 직전 수정본의 S25 픽셀 테마 확인과 이번 버전 빌드 검증은 구분한다. 소스 커밋 `18d9754fa7374582ffaa1834f444dfa3397cb0e5`에 `v1.0.1` 태그를 생성하고 [GitHub Release](https://github.com/GNOJES/tokiweather/releases/tag/v1.0.1)에 `tokiweather-v1.0.1.apk`를 게시했다. 공개 다운로드본 SHA-256이 위 로컬 검증본과 일치함을 확인했다.
 
 - 2026-10-15 v1.0.0 후속 날씨 탭 테마 연동: MainScreen의 저장 테마 Flow를 현재 날씨, 시간별 1/3시간, 내일/모레 오전/오후 및 기상청 링크 그림에 전달한다. 기존 주야간 계산과 레이아웃, 하단 내비게이션은 유지한다. testDebugUnitTest 135개(실패/오류 0), assembleDebug 및 assembleRelease, git diff --check 통과. S25(R3CY20ATGZZ)에 기존 디버그 서명 Release 수정본을 install -r 설치(Success)하고 기존 저장 레트로 픽셀 테마로 현재 구름+달, 시간별 1/3시간, 일별 주간 및 링크 아이콘이 함께 변경됨을 화면에서 확인했다. 테마와 색상, 갱신 주기, 화면 채우기는 변경하지 않았고 검증 후 시간별 간격은 원래 3시간으로 복구했다. 다른 6종의 실제 날씨 화면과 자연 낮/밤 전환은 이번 실기기에서 별도 확인하지 않았다. 버전 1.0.0/17 유지, 게시된 GitHub APK는 교체하지 않았다.
 
