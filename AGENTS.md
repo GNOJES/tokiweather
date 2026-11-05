@@ -136,6 +136,8 @@
 
 ## Testing and verification
 
+- 2026-11-05 v1.0.2 배포 완료: 소스 커밋 `e83aa1702de9088bd51e7c444fd1f78242103c27`에 태그 `v1.0.2`를 생성하고 [GitHub Release](https://github.com/GNOJES/tokiweather/releases/tag/v1.0.2)에 기존 디버그 서명의 Release APK `tokiweather-v1.0.2.apk`를 게시했다. 업로드 자산 digest와 공개 다운로드본 SHA-256이 모두 로컬 검증본 `18d6c40af3fdf8ecc19f71e9872c6798a0a33bbff393d08627b9d52cc1011716`과 일치했다. 이번 배포에는 10/18 네이버 WebView 위치 권한 수정도 포함하며 실기기 미검증 범위는 릴리즈 노트와 아래 기록에 남겼다.
+
 - 2026-11-05 v1.0.2/19 배포 준비: 일별 날짜 제목 변경과 기존 미커밋 네이버 위치 권한 수정(10/18)을 함께 포함한다. 신규 날짜 회귀 테스트 3개로 한국어 요일/공백 형식, 연도·윤일 경계, 캐시 갱신 없는 표시 날짜 변경을 검증했다. testDebugUnitTest·testReleaseUnitTest 각각 144개(실패/오류 0), assembleDebug·assembleRelease 및 git diff --check 통과. Release APK 패키지/버전 1.0.2/19 및 기존 디버그 인증서 일치를 확인했다. APK SHA-256은 `18d6c40af3fdf8ecc19f71e9872c6798a0a33bbff393d08627b9d52cc1011716`이다. ADB 연결 기기가 없어 실제 위젯 날짜 제목의 잘림/자정 전환 및 네이버 지도 위치 요청은 실기기 미검증이다. GitHub 게시 완료는 후속 기록을 따른다.
 
 - 2026-10-18 초단기 웹뷰 위치 권한 수정: 신규 6개 회귀 테스트로 기존 앱 권한 즉시 허용, 런타임 허용/거부, 비HTTPS/유사 도메인/다른 최상위 페이지 거부, 페이지 이동/종료 시 콜백 1회 취소, 요청 교체 뒤 늦은 응답 분리를 검증했다. testDebugUnitTest 141개(실패/오류 0), assembleDebug 및 assembleRelease, git diff --check 통과. Android 공식 WebChromeClient/GeolocationPermissions.Callback 명세를 대조했다. ADB 연결 기기가 없어 실제 네이버 현재 위치 버튼·Android 권한 창·정확/대략 위치·거부 후 설정 복귀는 실기기에서 미검증이다. 기존 databaseEnabled 사용 중단 예정 경고는 남아 있다. 버전 1.0.1/18 유지, 기기 설치와 GitHub 릴리즈 변경 없음.
