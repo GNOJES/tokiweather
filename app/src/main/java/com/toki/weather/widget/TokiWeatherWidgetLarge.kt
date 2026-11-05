@@ -291,7 +291,7 @@ private fun LargeWidgetLayout(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "내일",
+                        text = DateTimeUtils.forecastDateLabel(now.toLocalDate(), 1),
                         style = TextStyle(
                             color = subTextColorProvider,
                             fontSize = forecastLabelSize.fixedSp(fontScale)
@@ -328,7 +328,7 @@ private fun LargeWidgetLayout(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "모레",
+                        text = DateTimeUtils.forecastDateLabel(now.toLocalDate(), 2),
                         style = TextStyle(
                             color = subTextColorProvider,
                             fontSize = forecastLabelSize.fixedSp(fontScale)

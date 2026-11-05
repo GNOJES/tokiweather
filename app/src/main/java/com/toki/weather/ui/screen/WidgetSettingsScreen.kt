@@ -932,7 +932,7 @@ fun WidgetPreviewBox(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = DateTimeUtils.todayDateWithDayOfWeekString(),
+                                text = DateTimeUtils.todayDateWithDayOfWeekString(now.toLocalDate()),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = subText,
@@ -1038,7 +1038,7 @@ fun WidgetPreviewBox(
                                 modifier = Modifier.weight(1f),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "내일", fontSize = 10.5.sp, color = subText, maxLines = 1)
+                                Text(text = DateTimeUtils.forecastDateLabel(now.toLocalDate(), 1), fontSize = 10.5.sp, color = subText, maxLines = 1)
                                 Spacer(modifier = Modifier.height(1.dp))
                                 Image(
                                     painter = painterResource(iconTheme.iconRes(tomorrowCondition)),
@@ -1066,7 +1066,7 @@ fun WidgetPreviewBox(
                                 modifier = Modifier.weight(1f),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text(text = "모레", fontSize = 10.5.sp, color = subText, maxLines = 1)
+                                Text(text = DateTimeUtils.forecastDateLabel(now.toLocalDate(), 2), fontSize = 10.5.sp, color = subText, maxLines = 1)
                                 Spacer(modifier = Modifier.height(1.dp))
                                 Image(
                                     painter = painterResource(iconTheme.iconRes(dayAfterCondition)),

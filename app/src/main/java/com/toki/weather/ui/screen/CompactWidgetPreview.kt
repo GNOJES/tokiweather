@@ -71,9 +71,9 @@ fun CompactWidgetPreview(weather: CachedWeather, location: String, icon: Int, ba
                 }
             }
             Spacer(Modifier.width(5.dp))
-            PreviewForecast("내일", iconTheme.iconRes(weather.tomorrowCondition), weather.tomorrowMin, weather.tomorrowMax, weather.tomorrowPop, forecastWidth, text)
+            PreviewForecast(DateTimeUtils.forecastDateLabel(now.toLocalDate(), 1), iconTheme.iconRes(weather.tomorrowCondition), weather.tomorrowMin, weather.tomorrowMax, weather.tomorrowPop, forecastWidth, text)
             Spacer(Modifier.width(3.dp))
-            PreviewForecast("모레", iconTheme.iconRes(weather.dayAfterCondition), weather.dayAfterMin, weather.dayAfterMax, weather.dayAfterPop, forecastWidth, text)
+            PreviewForecast(DateTimeUtils.forecastDateLabel(now.toLocalDate(), 2), iconTheme.iconRes(weather.dayAfterCondition), weather.dayAfterMin, weather.dayAfterMax, weather.dayAfterPop, forecastWidth, text)
         }
     }
 }

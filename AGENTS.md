@@ -10,7 +10,7 @@
 
 - **앱 이름**: 토끼날씨 (TokiWeather)
 - **플랫폼 & 기술 스택**: Android (Kotlin), Jetpack Compose, Jetpack Glance (AppWidget), DataStore, Retrofit2/OkHttp, Material 3
-- **현재 버전**: `1.0.1` (versionCode `18`), `main` 브랜치 운용 중
+- **현재 버전**: `1.0.2` (versionCode `19`), `main` 브랜치 운용 중
 - **핵심 기능**:
   1. 기상청 실시간 날씨 및 한국환경공단 에어코리아 대기질(PM10·PM2.5) 데이터 연동. 대기질은 현재 위치에서 가까운 측정소의 시간별 실측값 사용.
   2. 홈 화면 위젯 2종 제공: One UI 4×7(Glance 2×1) 및 노바런처 8×8(Glance 3×2)
@@ -19,6 +19,8 @@
 ---
 
 ## Important decisions
+
+- 2026-11-05 일별 예보 날짜 제목: 앱 날씨 탭·두 위젯·두 설정 미리보기의 내일/모레 제목을 `11/6 (금)` 형식으로 표시한다. 캐시 저장일이 아닌 forDisplay에 사용한 현재 KST 날짜의 +1/+2일을 사용하며 날짜 변경 시 기존 분 단위/resume 재표시와 함께 바뀐다. 예보 결측을 임의 정상 값으로 대체하지 않고 기존 크기와 배열을 유지한다.
 
 1. **하단 내비게이션 바(3탭) UI/UX 규칙**:
    - **텍스트 라벨 완전 제거**: 탭 하단 글자("날씨", "초단기", "설정")는 제거하고, 아이콘을 48dp로 최대화하여 미니멀하고 시원한 룩 유지.
@@ -126,12 +128,17 @@
    - 같은 좌표의 가장 가까운 `영등포로` 측정소에서 공식 API는 PM10 32·PM2.5 21의 정상 관측값을 제공했고, 다음 실기기 새로고침에서 약 2초 만에 두 수치가 캐시와 화면에 표시됨. 인증 실패나 상시 결측은 아님.
    - Debug 빌드에서 인증키/URL을 노출하지 않고 `AirQualityRepository` 실패 단계와 예외 유형만 기록하도록 함. 재발 시 이 로그로 측정소 목록/관측값 요청 중 어느 단계가 실패했는지 확인할 것.
 5. **초단기 탭 네이버 지도 웹뷰**:
+   - 2026-10-18 현재 위치 버튼 수정: 기존 기본 WebChromeClient에는 웹 위치 권한 요청 처리(onGeolocationPermissionsShowPrompt)가 없어 앱의 위치 권한과 연결되지 않았다. WebView geolocation을 명시적으로 켜고 HTTPS weather.naver.com 출처와 현재 최상위 페이지가 모두 네이버 날씨일 때만 허용한다. 앱의 전경 위치 권한(FINE 또는 COARSE)이 있으면 사용하고 없으면 웹 위치 요청 시점에 두 권한을 함께 요청한다. 백그라운드 권한은 요구하지 않는다. 웹 허용/거부는 retain=false이며 거부 시 앱 설정 안내를 제공한다. 새 요청·페이지 이동·웹 요청 취소·탭 종료 때 이전 콜백을 한 번만 거부/정리하고, 늦게 도착한 권한 결과가 종료된 화면을 승인하지 않게 한다. 기존 로딩 실패/재시도/뒤로가기 규칙은 유지한다.
    - `https://weather.naver.com/map?visualMapType=maple` 사용.
    - 외부 웹 의존성이므로 네이버 측 모바일 웹페이지 레이아웃 변경 시 영향 가능성 있음.
 
 ---
 
 ## Testing and verification
+
+- 2026-11-05 v1.0.2/19 배포 준비: 일별 날짜 제목 변경과 기존 미커밋 네이버 위치 권한 수정(10/18)을 함께 포함한다. 신규 날짜 회귀 테스트 3개로 한국어 요일/공백 형식, 연도·윤일 경계, 캐시 갱신 없는 표시 날짜 변경을 검증했다. testDebugUnitTest·testReleaseUnitTest 각각 144개(실패/오류 0), assembleDebug·assembleRelease 및 git diff --check 통과. Release APK 패키지/버전 1.0.2/19 및 기존 디버그 인증서 일치를 확인했다. APK SHA-256은 `18d6c40af3fdf8ecc19f71e9872c6798a0a33bbff393d08627b9d52cc1011716`이다. ADB 연결 기기가 없어 실제 위젯 날짜 제목의 잘림/자정 전환 및 네이버 지도 위치 요청은 실기기 미검증이다. GitHub 게시 완료는 후속 기록을 따른다.
+
+- 2026-10-18 초단기 웹뷰 위치 권한 수정: 신규 6개 회귀 테스트로 기존 앱 권한 즉시 허용, 런타임 허용/거부, 비HTTPS/유사 도메인/다른 최상위 페이지 거부, 페이지 이동/종료 시 콜백 1회 취소, 요청 교체 뒤 늦은 응답 분리를 검증했다. testDebugUnitTest 141개(실패/오류 0), assembleDebug 및 assembleRelease, git diff --check 통과. Android 공식 WebChromeClient/GeolocationPermissions.Callback 명세를 대조했다. ADB 연결 기기가 없어 실제 네이버 현재 위치 버튼·Android 권한 창·정확/대략 위치·거부 후 설정 복귀는 실기기에서 미검증이다. 기존 databaseEnabled 사용 중단 예정 경고는 남아 있다. 버전 1.0.1/18 유지, 기기 설치와 GitHub 릴리즈 변경 없음.
 
 - 2026-10-15 v1.0.1/18 배포 검증: 앱 날씨 탭 아이콘 테마 연동 후속 수정을 포함한다. testDebugUnitTest 및 testReleaseUnitTest 각각 135개(실패/오류 0), assembleDebug 및 assembleRelease, git diff --check 통과. Release APK의 com.toki.weather/1.0.1/18과 기존 디버그 인증서 일치를 확인했다. APK SHA-256은 `5d4192aeb37ab6c0b3b05f6d838a2855b997ce73dcec8c5a7e178b08f7893e79`이다. 직전 수정본의 S25 픽셀 테마 확인과 이번 버전 빌드 검증은 구분한다. 소스 커밋 `18d9754fa7374582ffaa1834f444dfa3397cb0e5`에 `v1.0.1` 태그를 생성하고 [GitHub Release](https://github.com/GNOJES/tokiweather/releases/tag/v1.0.1)에 `tokiweather-v1.0.1.apk`를 게시했다. 공개 다운로드본 SHA-256이 위 로컬 검증본과 일치함을 확인했다.
 
@@ -191,7 +198,7 @@
   ```bash
   ./gradlew testDebugUnitTest
   ```
-  (2026-10-15 기준 단위 테스트 메서드는 총 135개. 기존 WeatherCondition 테스트 메서드 1개에서 8종 × 3가지 속성 = 24회 단언을 실행하므로, 전체 테스트 수와 기존 24회 단언을 혼동하지 말 것. 모든 테스트 통과 상태 유지 필수.)
+  (2026-11-05 기준 단위 테스트 메서드는 총 144개. 기존 WeatherCondition 테스트 메서드 1개에서 8종 × 3가지 속성 = 24회 단언을 실행하므로, 전체 테스트 수와 기존 24회 단언을 혼동하지 말 것. 모든 테스트 통과 상태 유지 필수.)
 - **빌드 및 패키징**:
   ```bash
   ./gradlew assembleDebug

@@ -87,6 +87,10 @@ object DateTimeUtils {
     fun todayDateWithDayOfWeekString(date: LocalDate = LocalDate.now()): String =
         date.format(DATE_WITH_DAY_FORMAT)
 
+    /** Forecast title based on display date, never on the cache save date. */
+    fun forecastDateLabel(today: LocalDate, daysAhead: Long): String =
+        today.plusDays(daysAhead).format(DateTimeFormatter.ofPattern("M/d (E)", Locale.KOREAN))
+
     /**
      * 내일 날짜 문자열 (YYYYMMDD)
      */

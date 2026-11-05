@@ -1,5 +1,18 @@
 package com.toki.weather.ui.screen
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
+import android.webkit.GeolocationPermissions
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalContext
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.view.ViewGroup
@@ -41,6 +54,23 @@ fun RadarWebViewScreen(
     url: String = "https://weather.naver.com/map?visualMapType=maple",
     onBackPressed: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val locationPermission = remember { RadarLocationPermission() }
+    var permissionRequestInFlight by remember { mutableStateOf(false) }
+    var showLocationDenied by remember { mutableStateOf(false) }
+    fun hasLocationPermission(): Boolean = listOf(
+        Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION
+    ).any { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        permissionRequestInFlight = false
+        val granted = hasLocationPermission()
+        if (locationPermission.complete(granted) && !granted) showLocationDenied = true
+    }
+    DisposableEffect(locationPermission) {
+        onDispose { locationPermission.cancel() }
+    }
     var webView: WebView? by remember { mutableStateOf(null) }
     var loadState by remember { mutableStateOf(RadarLoadState()) }
     var navigation by remember { mutableStateOf(0) }
@@ -70,6 +100,7 @@ fun RadarWebViewScreen(
                     )
                     settings.apply {
                         javaScriptEnabled = true
+                        setGeolocationEnabled(true)
                         domStorageEnabled = true
                         databaseEnabled = true
                         useWideViewPort = true
@@ -81,6 +112,8 @@ fun RadarWebViewScreen(
                     }
                     webViewClient = object : WebViewClient() {
                         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                            locationPermission.cancel()
+                            showLocationDenied = false
                             super.onPageStarted(view, url, favicon)
                             loadState = RadarLoadState()
                             navigation++
@@ -97,12 +130,32 @@ fun RadarWebViewScreen(
                             loadState = loadState.failed(request?.isForMainFrame == true)
                         }
                     }
-                    webChromeClient = WebChromeClient()
+                    webChromeClient = object : WebChromeClient() {
+                        override fun onGeolocationPermissionsShowPrompt(
+                            origin: String, callback: GeolocationPermissions.Callback
+                        ) {
+                            val needsPermission = locationPermission.request(
+                                origin, this@apply.url, hasLocationPermission()
+                            ) { allowed -> callback.invoke(origin, allowed, false) }
+                            if (needsPermission && !permissionRequestInFlight) {
+                                permissionRequestInFlight = true
+                                permissionLauncher.launch(arrayOf(
+                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                ))
+                            }
+                        }
+
+                        override fun onGeolocationPermissionsHidePrompt() {
+                            locationPermission.cancel()
+                        }
+                    }
                     loadUrl(url)
                     webView = this
                 }
             },
             onRelease = { view ->
+                locationPermission.cancel()
                 webView = null
                 view.stopLoading()
                 view.webChromeClient = null
@@ -116,6 +169,23 @@ fun RadarWebViewScreen(
             }
         )
 
+        if (showLocationDenied) {
+            AlertDialog(
+                onDismissRequest = { showLocationDenied = false },
+                title = { Text("위치 권한이 필요합니다") },
+                text = { Text("네이버 지도에서 현재 위치를 찾으려면 앱의 위치 권한을 허용해 주세요. 허용 후 지도에서 현재 위치 버튼을 다시 눌러 주세요.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showLocationDenied = false
+                        context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.parse("package:${context.packageName}")))
+                    }) { Text("앱 설정") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showLocationDenied = false }) { Text("닫기") }
+                }
+            )
+        }
         if (loadState.error) {
             Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
                 verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {

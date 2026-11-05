@@ -321,7 +321,8 @@ fun WeatherPlaceholderScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        listOf("내일", "모레").forEachIndexed { index, day ->
+                        listOf(1L, 2L).forEachIndexed { index, daysAhead ->
+                            val day = DateTimeUtils.forecastDateLabel(now.toLocalDate(), daysAhead)
                             Column(
                                 modifier = Modifier
                                     .weight(1f)

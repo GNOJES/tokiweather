@@ -256,13 +256,13 @@ private fun WeatherWidgetContent(
                 }
                 Spacer(modifier = GlanceModifier.width(columnGap))
                 CompactForecast(
-                    "내일", weather.tomorrowCondition, weather.tomorrowMin, weather.tomorrowMax,
+                    DateTimeUtils.forecastDateLabel(now.toLocalDate(), 1), weather.tomorrowCondition, weather.tomorrowMin, weather.tomorrowMax,
                     weather.tomorrowPop, forecastWidth, forecastIconSize, forecastTempSize,
                     mainTextColor, fontScale, theme.iconTheme
                 )
                 Spacer(modifier = GlanceModifier.width(3.dp))
                 CompactForecast(
-                    "모레", weather.dayAfterCondition, weather.dayAfterMin, weather.dayAfterMax,
+                    DateTimeUtils.forecastDateLabel(now.toLocalDate(), 2), weather.dayAfterCondition, weather.dayAfterMin, weather.dayAfterMax,
                     weather.dayAfterPop, forecastWidth, forecastIconSize, forecastTempSize,
                     mainTextColor, fontScale, theme.iconTheme
                 )
